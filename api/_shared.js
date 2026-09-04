@@ -3,19 +3,28 @@ import { seedData } from "../src/storeData.js";
 
 const CATALOG_KEY = "catalog";
 
-export function json(response, status = 200, headers = {}) {
-  return new Response(JSON.stringify(response), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      ...headers,
-    },
-  });
+export function sendJson(res, response, status = 200, headers = {}) {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store");
+  for (const [key, value] of Object.entries(headers)) {
+    res.setHeader(key, value);
+  }
+  res.end(JSON.stringify(response));
 }
 
-export function readCookie(request, name) {
-  const header = request.headers.get("cookie") || "";
+export async function readJson(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (typeof req.body === "string") return JSON.parse(req.body || "{}");
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const body = Buffer.concat(chunks).toString("utf8");
+  return body ? JSON.parse(body) : {};
+}
+
+export function readCookie(req, name) {
+  const header = req.headers.cookie || "";
   return header
     .split(";")
     .map((part) => part.trim())

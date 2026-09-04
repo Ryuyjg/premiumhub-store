@@ -10,9 +10,11 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vercel
 *.local
 premiumhub-dist-*.tar.gz
 deploy-premiumhub.sh
+admin-password.txt
 
 # Editor directories and files
 .vscode/*
@@ -25,4 +27,3 @@ deploy-premiumhub.sh
 *.sln
 *.sw?
 
-.vercel
