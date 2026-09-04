@@ -1,57 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { logo, seedData } from "./storeData";
 import "./App.css";
 
 const STORE_KEY = "premium-hub-store-v1";
 const CART_KEY = "premium-hub-cart-v1";
-const ADMIN_KEY = "premium-hub-admin";
-
-const logo = (text, bg, fg = "#fff") =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220"><rect width="320" height="220" rx="32" fill="${bg}"/><text x="50%" y="48%" text-anchor="middle" font-family="Inter,Arial" font-size="46" font-weight="800" fill="${fg}">${text}</text><text x="50%" y="68%" text-anchor="middle" font-family="Inter,Arial" font-size="19" font-weight="600" fill="${fg}" opacity=".76">Premium Hub</text></svg>`)}`;
-
-const seedData = {
-  settings: {
-    siteName: "Premium Hub",
-    tagline: "Premium Subscriptions. Better Prices.",
-    whatsappNumber: "919876543210",
-    whatsappMessage: "Hello Premium Hub, I would like to place an order.",
-    currency: "₹",
-    contact: "support@premiumhub.local",
-    footerText: "Digital subscriptions delivered fast through WhatsApp.",
-    instagram: "https://instagram.com/premiumhub",
-  },
-  categories: [
-    { id: "ott", name: "OTT Subscriptions", slug: "ott-subscriptions", description: "Netflix, Prime Video, JioHotstar, SonyLIV and ZEE5 plans.", active: true, featured: true, order: 1, image: logo("OTT", "#111827") },
-    { id: "ai", name: "AI Tools", slug: "ai-tools", description: "ChatGPT, Claude and useful AI products.", active: true, featured: true, order: 2, image: logo("AI", "#0f766e") },
-    { id: "music", name: "Music", slug: "music", description: "Spotify and other music subscriptions.", active: true, featured: true, order: 3, image: logo("♪", "#b91c1c") },
-    { id: "editing", name: "Editing Tools", slug: "editing-tools", description: "CapCut and creative software offers.", active: true, featured: true, order: 4, image: logo("EDIT", "#4338ca") },
-  ],
-  products: [
-    product("netflix", "Netflix Premium", "ott", "4K streaming with premium account support.", ["4K UHD streaming", "Multi-device support", "Fast activation"], logo("N", "#e50914"), true, 1, [["1 Month", 399, 499, true], ["3 Months", 999, 1199, true], ["6 Months", 1799, 2199, false]]),
-    product("prime-video", "Prime Video", "ott", "Prime entertainment plan for movies and series.", ["HD streaming", "Regional content", "Quick setup"], logo("prime", "#00a8e1"), true, 2, [["1 Month", 199, 299, true], ["3 Months", 499, 699, true]]),
-    product("jiohotstar", "JioHotstar", "ott", "Sports, movies and premium shows in one plan.", ["Live sports", "HD content", "Mobile friendly"], logo("JH", "#2563eb"), true, 3, [["1 Month", 149, 199, true], ["1 Year", 899, 1199, true]]),
-    product("sonyliv", "SonyLIV", "ott", "SonyLIV premium subscription access.", ["Sports and originals", "HD streaming"], logo("SL", "#581c87"), false, 4, [["1 Month", 179, 249, true], ["6 Months", 699, 899, false]]),
-    product("zee5", "ZEE5", "ott", "Premium ZEE5 entertainment plans.", ["Movies", "Shows", "Family content"], logo("Z5", "#7c2d12"), false, 5, [["1 Month", 99, 149, true], ["1 Year", 599, 899, true]]),
-    product("youtube-premium", "YouTube Premium", "music", "Ad-free YouTube and background play.", ["No ads", "Background play", "YouTube Music"], logo("YT", "#dc2626"), true, 6, [["1 Month", 129, 159, true], ["3 Months", 349, 449, true]]),
-    product("spotify", "Spotify Premium", "music", "Premium music subscription plans.", ["Ad-free music", "Offline listening", "High quality audio"], logo("SP", "#16a34a"), true, 7, [["1 Month", 99, 129, true], ["3 Months", 249, 329, true], ["1 Year", 699, 999, true]]),
-    product("chatgpt", "ChatGPT", "ai", "AI assistant plans for productivity.", ["Writing help", "Research support", "Coding assistance"], logo("GPT", "#111827"), true, 8, [["1 Month", 999, 1299, true], ["3 Months", 2699, 3299, true]]),
-    product("claude", "Claude", "ai", "Claude AI subscription access.", ["Long context", "Writing support", "Reasoning"], logo("CL", "#7c3aed"), false, 9, [["1 Month", 949, 1199, true]]),
-    product("capcut", "CapCut Pro", "editing", "Editing tools for creators.", ["Premium effects", "Templates", "Export tools"], logo("CC", "#0891b2"), true, 10, [["1 Month", 299, 399, true], ["1 Year", 1999, 2499, true]]),
-  ],
-  offers: [
-    { id: "offer-spotify-year", title: "Spotify Yearly Deal", productId: "spotify", variationId: "spotify-2", price: 649, originalPrice: 999, description: "Limited yearly price for music lovers.", startDate: "", endDate: "", active: true, image: logo("DEAL", "#166534") },
-    { id: "offer-prime-3m", title: "Prime Video 3 Month Offer", productId: "prime-video", variationId: "prime-video-1", price: 449, originalPrice: 699, description: "Save on a three month entertainment plan.", startDate: "", endDate: "", active: true, image: "" },
-  ],
-};
-
-function product(id, name, categoryId, description, features, image, featured, order, variations) {
-  return {
-    id, name, slug: id, categoryId, image, shortDescription: description, description, features,
-    active: true, inStock: true, featured, order,
-    variations: variations.map(([name, price, originalPrice, inStock], index) => ({
-      id: `${id}-${index}`, name, price, originalPrice, inStock, sku: `${id.toUpperCase()}-${index + 1}`, order: index + 1,
-    })),
-  };
-}
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -66,11 +18,29 @@ function App() {
   const [store, setStore] = useState(loadStore);
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem(CART_KEY) || "[]"));
   const [route, setRoute] = useState(location.hash.replace("#", "") || "/");
-  const [adminAuthed, setAdminAuthed] = useState(localStorage.getItem(ADMIN_KEY) === "yes");
+  const [adminAuthed, setAdminAuthed] = useState(false);
   const [notice, setNotice] = useState("");
+  const [dataStatus, setDataStatus] = useState("Loading catalog...");
 
-  useEffect(() => localStorage.setItem(STORE_KEY, JSON.stringify(store)), [store]);
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
+  useEffect(() => {
+    fetch("/api/catalog")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Catalog API failed")))
+      .then((data) => {
+        setStore(data);
+        localStorage.setItem(STORE_KEY, JSON.stringify(data));
+        setDataStatus("Database connected");
+      })
+      .catch(() => {
+        setDataStatus("Using local demo data");
+      });
+  }, []);
+  useEffect(() => {
+    fetch("/api/session")
+      .then((response) => response.ok ? response.json() : { authenticated: false })
+      .then((data) => setAdminAuthed(Boolean(data.authenticated)))
+      .catch(() => setAdminAuthed(false));
+  }, []);
   useEffect(() => {
     if (!notice) return undefined;
     const timer = setTimeout(() => setNotice(""), 2200);
@@ -86,7 +56,27 @@ function App() {
   const cartLines = useMemo(() => hydrateCart(cart, ctx), [cart, ctx]);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const navigate = (path) => { location.hash = path; setRoute(path); scrollTo({ top: 0, behavior: "smooth" }); };
-  const updateStore = (next) => setStore(typeof next === "function" ? next(store) : next);
+  const updateStore = async (next) => {
+    const updated = typeof next === "function" ? next(store) : next;
+    setStore(updated);
+    localStorage.setItem(STORE_KEY, JSON.stringify(updated));
+    setDataStatus("Saving...");
+    try {
+      const response = await fetch("/api/catalog", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(updated),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      const saved = await response.json();
+      setStore(saved);
+      localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+      setDataStatus("Saved to database");
+    } catch {
+      setDataStatus("Save failed. Check admin login and database settings.");
+    }
+  };
   const addToCart = (productId, variationId, quantity = 1) => {
     const product = ctx.productById[productId];
     const variation = product?.variations.find((item) => item.id === variationId);
@@ -100,7 +90,7 @@ function App() {
     return true;
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, setDataStatus };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} />
@@ -277,13 +267,13 @@ function Cart({ cartLines, setCart, store }) {
   );
 }
 
-function Admin({ store, updateStore, adminAuthed, setAdminAuthed }) {
+function Admin({ store, updateStore, adminAuthed, setAdminAuthed, dataStatus }) {
   const [tab, setTab] = useState("products");
-  if (!adminAuthed) return <Login onLogin={(password) => { if (password === "admin123") { localStorage.setItem(ADMIN_KEY, "yes"); setAdminAuthed(true); } }} />;
+  if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
   return (
     <section className="admin page-top">
-      <div className="admin-head"><h1>Admin Dashboard</h1><button className="ghost" onClick={() => { localStorage.removeItem(ADMIN_KEY); setAdminAuthed(false); }}>Logout</button></div>
+      <div className="admin-head"><div><h1>Admin Dashboard</h1><span className="db-status">{dataStatus}</span></div><button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button></div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} />}
@@ -296,7 +286,19 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed }) {
 
 function Login({ onLogin }) {
   const [password, setPassword] = useState("");
-  return <section className="login page-top"><h1>Admin Login</h1><p>Demo password: admin123</p><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" /><button onClick={() => onLogin(password)}>Login</button></section>;
+  const [error, setError] = useState("");
+  const login = async () => {
+    setError("");
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ password }),
+    });
+    if (response.ok) onLogin();
+    else setError("Invalid admin password");
+  };
+  return <section className="login page-top"><h1>Admin Login</h1><p>Use the secure admin password configured in Vercel.</p><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" /><button onClick={login}>Login</button>{error && <small className="danger">{error}</small>}</section>;
 }
 
 function ProductAdmin({ store, updateStore }) {

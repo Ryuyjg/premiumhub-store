@@ -24,3 +24,5 @@ deploy-premiumhub.sh
 *.njsproj
 *.sln
 *.sw?
+
+.vercel

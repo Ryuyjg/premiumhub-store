@@ -154,6 +154,7 @@ footer { display: flex; gap: 16px; justify-content: space-between; flex-wrap: wr
 footer button { background: transparent; color: #64748b; padding: 0; box-shadow: none; }
 .admin { max-width: 1260px; }
 .admin-head { display: flex; justify-content: space-between; align-items: center; }
+.db-status { color: #0f766e; font-weight: 850; }
 .stats { margin: 18px 0; }
 .stats div { background: #151b2d; color: #fff; border-radius: 8px; padding: 20px; }
 .stats strong { display: block; font-size: 34px; }
