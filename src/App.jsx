@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { logo, seedData } from "./storeData";
 import "./App.css";
 
@@ -114,16 +114,38 @@ function App() {
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
       {notice && <div className="toast" role="status">{notice}</div>}
       <main>
-        {route === "/" && <Home {...props} />}
-        {route.startsWith("/products") && <Products {...props} slug={route.split("/")[2]} />}
-        {route.startsWith("/categories") && <Categories {...props} slug={route.split("/")[2]} />}
-        {route === "/offers" && <Offers {...props} />}
-        {route === "/cart" && <Cart {...props} />}
-        {route.startsWith("/admin") && <Admin {...props} />}
+        <RouteErrorBoundary key={route}>
+          {route === "/" && <Home {...props} />}
+          {route.startsWith("/products") && <Products {...props} slug={route.split("/")[2]} />}
+          {route.startsWith("/categories") && <Categories {...props} slug={route.split("/")[2]} />}
+          {route === "/offers" && <Offers {...props} />}
+          {route === "/cart" && <Cart {...props} />}
+          {route.startsWith("/admin") && <Admin {...props} />}
+        </RouteErrorBoundary>
       </main>
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
   );
+}
+
+class RouteErrorBoundary extends Component {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <section className="section page-top">
+          <h1>Page needs attention</h1>
+          <p className="muted">This page could not load one catalog item. Please refresh or check the admin data.</p>
+        </section>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function buildContext(store) {
@@ -270,17 +292,36 @@ function Categories({ ctx, slug, navigate, store, addToCart }) {
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
-function Offers({ ctx, settings, addToCart, navigate }) {
-  return <section className="section page-top"><h1>Offers</h1><OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={settings} addToCart={addToCart} navigate={navigate} /></section>;
+function Offers({ ctx, store, addToCart, navigate }) {
+  return <section className="section page-top"><h1>Offers</h1><OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} /></section>;
 }
 
 function OfferGrid({ offers, ctx, settings, addToCart, navigate }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
-    const variation = product?.variations.find((v) => v.id === offer.variationId);
-    const canBuy = product?.active && isAvailable(product) && isAvailable(variation);
-    return <article className="offer-card" key={offer.id}><div className="image-wrap"><img src={offer.image || product?.image} alt={offer.title} />{!canBuy && <span className="stock-badge">Stock Out</span>}</div><div><span className="pill">Deal</span><h3>{offer.title}</h3><p>{offer.description}</p><strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong><div className="card-actions"><button onClick={() => navigate(`/products/${product?.slug}`)}>View</button><button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id)}>Add</button></div></div></article>;
+    const variation = product?.variations?.find((v) => v.id === offer.variationId);
+    const canBuy = Boolean(product?.active && variation && isAvailable(product) && isAvailable(variation));
+    const image = offer.image || product?.image || logo("DEAL", "#166534");
+    return (
+      <article className="offer-card" key={offer.id}>
+        <div className="image-wrap">
+          <img src={image} alt={offer.title || "Offer"} />
+          {!canBuy && <span className="stock-badge">Stock Out</span>}
+        </div>
+        <div>
+          <span className="pill">Deal</span>
+          <h3>{offer.title}</h3>
+          <p>{offer.description}</p>
+          <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
+          {(!product || !variation) && <small className="danger">Offer product is not configured</small>}
+          <div className="card-actions">
+            <button disabled={!product} onClick={() => product && navigate(`/products/${product.slug}`)}>View</button>
+            <button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id)}>Add</button>
+          </div>
+        </div>
+      </article>
+    );
   })}</div>;
 }
 
