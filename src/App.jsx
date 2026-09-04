@@ -14,10 +14,19 @@ function loadStore() {
   return saved ? JSON.parse(saved) : seedData;
 }
 
+function currentRoute() {
+  if (location.hash.startsWith("#/")) {
+    const path = location.hash.slice(1);
+    history.replaceState(null, "", path);
+    return path;
+  }
+  return location.pathname || "/";
+}
+
 function App() {
   const [store, setStore] = useState(loadStore);
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem(CART_KEY) || "[]"));
-  const [route, setRoute] = useState(location.hash.replace("#", "") || "/");
+  const [route, setRoute] = useState(currentRoute);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [notice, setNotice] = useState("");
   const [dataStatus, setDataStatus] = useState("Loading catalog...");
@@ -47,15 +56,19 @@ function App() {
     return () => clearTimeout(timer);
   }, [notice]);
   useEffect(() => {
-    const onHash = () => setRoute(location.hash.replace("#", "") || "/");
-    addEventListener("hashchange", onHash);
-    return () => removeEventListener("hashchange", onHash);
+    const onPop = () => setRoute(currentRoute());
+    addEventListener("popstate", onPop);
+    return () => removeEventListener("popstate", onPop);
   }, []);
 
   const ctx = useMemo(() => buildContext(store), [store]);
   const cartLines = useMemo(() => hydrateCart(cart, ctx), [cart, ctx]);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const navigate = (path) => { location.hash = path; setRoute(path); scrollTo({ top: 0, behavior: "smooth" }); };
+  const navigate = (path) => {
+    history.pushState(null, "", path);
+    setRoute(path);
+    scrollTo({ top: 0, behavior: "smooth" });
+  };
   const updateStore = async (next) => {
     const updated = typeof next === "function" ? next(store) : next;
     setStore(updated);
@@ -350,7 +363,7 @@ function textToList(value) {
 }
 
 function Footer({ settings }) {
-  return <footer><strong>{settings.siteName}</strong><span>{settings.footerText}</span><span>{settings.contact}</span><a href={settings.instagram}>Instagram</a><button onClick={() => { location.hash = "/admin"; }}>Admin</button></footer>;
+  return <footer><strong>{settings.siteName}</strong><span>{settings.footerText}</span><span>{settings.contact}</span><a href={settings.instagram}>Instagram</a></footer>;
 }
 
 function Empty({ title, action }) {
