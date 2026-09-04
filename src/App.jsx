@@ -363,22 +363,18 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus }) 
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
-  const statusKind = saveStatus.toLowerCase().includes("failed") ? "error" : "active";
   return (
     <section className="admin page-top">
       <div className="admin-head">
-        <div>
-          <h1>Admin Dashboard</h1>
-          {saveStatus && <div className={`admin-status ${statusKind}`} role="status">{saveStatus}</div>}
-        </div>
+        <div><h1>Admin Dashboard</h1></div>
         <button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button>
       </div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
-      {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} />}
-      {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} />}
-      {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} />}
-      {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} />}
+      {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} saveStatus={saveStatus} />}
     </section>
   );
 }
@@ -400,7 +396,7 @@ function Login({ onLogin }) {
   return <section className="login page-top"><h1>Admin Login</h1><p>Use the secure admin password configured in Vercel.</p><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" /><button onClick={login}>Login</button>{error && <small className="danger">{error}</small>}</section>;
 }
 
-function ProductAdmin({ store, updateStore }) {
+function ProductAdmin({ store, updateStore, saveStatus }) {
   const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
   const [draft, setDraft] = useState(blank);
   const save = () => {
@@ -415,7 +411,7 @@ function ProductAdmin({ store, updateStore }) {
       "✕ Failed to save product. Please try again."
     );
   };
-  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} />;
+  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
 }
 
 function ProductForm({ draft, setDraft, categories }) {
@@ -451,25 +447,25 @@ function VariationEditor({ variations, setVariations, productId }) {
   return <div className="variation-editor"><h3>Variations</h3>{variations.map((v) => <div className="variation-row" key={v.id}><input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /><input type="number" value={v.price} onChange={(e) => set(v.id, "price", Number(e.target.value))} /><input type="number" value={v.originalPrice || ""} onChange={(e) => set(v.id, "originalPrice", Number(e.target.value))} placeholder="Original" /><input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /><label><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label><button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button></div>)}<button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: 0, originalPrice: 0, stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button></div>;
 }
 
-function CategoryAdmin({ store, updateStore }) {
+function CategoryAdmin({ store, updateStore, saveStatus }) {
   const blank = { id: uid("category"), name: "", slug: "", description: "", active: true, featured: false, order: store.categories.length + 1, image: logo("CAT", "#475569") };
   const [draft, setDraft] = useState(blank);
   const save = () => updateStore((s) => ({ ...s, categories: [...s.categories.filter((c) => c.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name) }] }), "✓ Category saved successfully", "✕ Failed to save category. Please try again.");
   const form = <div className="form-grid"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Image URL" /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="number" value={draft.order} onChange={(e) => setDraft({ ...draft, order: Number(e.target.value) })} /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label></div>;
-  return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} />;
+  return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
 }
 
-function OfferAdmin({ store, updateStore }) {
+function OfferAdmin({ store, updateStore, saveStatus }) {
   const first = store.products[0];
   const blank = { id: uid("offer"), title: "", productId: first?.id || "", variationId: first?.variations[0]?.id || "", price: 0, originalPrice: 0, description: "", startDate: "", endDate: "", active: true, image: "" };
   const [draft, setDraft] = useState(blank);
   const product = store.products.find((p) => p.id === draft.productId);
   const save = () => updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), draft] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
   const form = <div className="form-grid"><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /><select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select><input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} /><input type="number" value={draft.originalPrice} onChange={(e) => setDraft({ ...draft, originalPrice: Number(e.target.value) })} /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /><input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Offer image URL" /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label></div>;
-  return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} />;
+  return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
 }
 
-function SettingsAdmin({ store, updateStore }) {
+function SettingsAdmin({ store, updateStore, saveStatus }) {
   const [draft, setDraft] = useState(store.settings);
   const save = () => updateStore((latest) => ({ ...latest, settings: { ...latest.settings, ...draft } }), "✓ Settings saved successfully", "✕ Failed to save settings. Please try again.");
   return (
@@ -492,7 +488,7 @@ function SettingsAdmin({ store, updateStore }) {
         <label>Footer text<textarea value={draft.footerText || ""} onChange={(e) => setDraft({ ...draft, footerText: e.target.value })} /></label>
         <label>WhatsApp message<textarea value={draft.whatsappMessage || ""} onChange={(e) => setDraft({ ...draft, whatsappMessage: e.target.value })} /></label>
       </div>
-      <button onClick={save}>Save Settings</button>
+      <div className="actions editor-actions"><button onClick={save}>Save Settings</button><AdminStatusMessage message={saveStatus} /></div>
     </section>
   );
 }
@@ -501,8 +497,14 @@ function Field({ label, value, onChange }) {
   return <label>{label}<input value={value || ""} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
-function Editor({ title, list, pick, draft, save, remove, onNew }) {
-  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div>{draft}<div className="actions"><button onClick={save}>Save</button><button className="ghost" onClick={remove}>Delete</button></div></div></div></section>;
+function Editor({ title, list, pick, draft, save, remove, onNew, saveStatus }) {
+  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div>{draft}<div className="actions editor-actions"><button onClick={save}>Save</button><button className="ghost" onClick={remove}>Delete</button><AdminStatusMessage message={saveStatus} /></div></div></div></section>;
+}
+
+function AdminStatusMessage({ message }) {
+  if (!message) return null;
+  const kind = message.toLowerCase().includes("failed") ? "error" : "active";
+  return <div className={`admin-status ${kind}`} role="status">{message}</div>;
 }
 
 function textToList(value) {

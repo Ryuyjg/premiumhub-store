@@ -310,6 +310,8 @@ footer button { background: transparent; color: var(--text-soft); padding: 0; bo
 .tabs button { background: var(--card); color: var(--text-soft); border: 1px solid var(--border-strong); }
 .tabs .active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 .admin-editor { padding: 18px; }
+.editor-actions { margin-top: 14px; }
+.editor-actions .admin-status { flex-basis: 100%; }
 .editor-layout { display: grid; grid-template-columns: 240px 1fr; gap: 18px; }
 .admin-list { display: grid; align-content: start; gap: 8px; }
 .admin-list button { display: flex; justify-content: space-between; gap: 12px; background: var(--surface); color: var(--text-strong); border: 1px solid var(--border); box-shadow: none; text-align: left; font-size: 15px; font-weight: 600; }
