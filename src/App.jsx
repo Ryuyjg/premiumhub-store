@@ -69,6 +69,8 @@ function App() {
   const ctx = useMemo(() => buildContext(store), [store]);
   const cartLines = useMemo(() => hydrateCart(cart, ctx), [cart, ctx]);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartTotal = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
+  const showStickyCart = cartCount > 0 && !route.startsWith("/cart") && !route.startsWith("/admin");
   const navigate = (path) => {
     history.pushState(null, "", path);
     setRoute(path);
@@ -113,7 +115,7 @@ function App() {
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
       {notice && <div className="toast" role="status">{notice}</div>}
-      <main>
+      <main className={showStickyCart ? "with-sticky-cart" : ""}>
         <RouteErrorBoundary key={route}>
           {route === "/" && <Home {...props} />}
           {route.startsWith("/products") && <Products {...props} slug={route.split("/")[2]} />}
@@ -123,6 +125,7 @@ function App() {
           {route.startsWith("/admin") && <Admin {...props} />}
         </RouteErrorBoundary>
       </main>
+      {showStickyCart && <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} navigate={navigate} />}
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
   );
@@ -188,6 +191,17 @@ function Header({ settings, cartCount, navigate, route }) {
         </nav>
       )}
     </header>
+  );
+}
+
+function StickyCartButton({ count, total, settings, navigate }) {
+  const label = count === 1 ? "1 Item" : `${count} Items`;
+  return (
+    <button className="sticky-cart-cta" onClick={() => navigate("/cart")}>
+      <span>View Cart</span>
+      <b>{label}</b>
+      <strong>{money(total, settings.currency)}</strong>
+    </button>
   );
 }
 
