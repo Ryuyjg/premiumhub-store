@@ -39,6 +39,7 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
 }
 .brand { display: inline-flex; align-items: center; gap: 10px; background: transparent; color: #121827; padding: 0; box-shadow: none; font-size: 19px; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; background: #151b2d; color: #fff; font-size: 13px; letter-spacing: 0; }
+.brand-logo { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; background: #fff; border: 1px solid #e1e7f0; }
 nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 nav button { background: transparent; color: #475569; padding: 9px 10px; box-shadow: none; }
 .cart-link { background: #151b2d; color: #fff; }
@@ -237,6 +238,18 @@ label input[type="checkbox"] { width: auto; margin-right: 8px; }
   padding: 8px;
 }
 .image-preview img { display: block; width: 100%; aspect-ratio: 1.45 / 1; object-fit: cover; border-radius: 8px; }
+.settings-form .logo-preview {
+  grid-column: 1 / -1;
+  display: inline-grid;
+  width: 110px;
+  min-height: 82px;
+  place-items: center;
+  border: 1px solid #e1e7f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+}
+.logo-preview img { max-width: 88px; max-height: 60px; object-fit: contain; border-radius: 8px; }
 .variation-editor { border: 1px solid #e1e7f0; border-radius: 8px; padding: 12px; background: #fbfcfe; }
 .variation-row { display: grid; grid-template-columns: 1fr 110px 110px 90px 110px 70px; gap: 8px; align-items: center; margin-bottom: 8px; }
 .login { max-width: 420px; padding: 24px; display: grid; gap: 12px; }

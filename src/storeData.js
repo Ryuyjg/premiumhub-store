@@ -37,6 +37,7 @@ export function product(id, name, categoryId, description, features, image, feat
 export const seedData = {
   settings: {
     siteName: "Premium Hub",
+    logoImage: "",
     tagline: "Premium Subscriptions. Better Prices.",
     whatsappNumber: "919876543210",
     whatsappMessage: "Hello Premium Hub, I would like to place an order.",

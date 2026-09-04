@@ -174,7 +174,8 @@ function Header({ settings, cartCount, navigate, route }) {
   return (
     <header className="site-header">
       <button className="brand" onClick={() => navigate("/")}>
-        <span className="brand-mark">PH</span><span>{settings.siteName}</span>
+        {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
+        <span>{settings.siteName}</span>
       </button>
       {!isAdminRoute && (
         <nav>
@@ -441,7 +442,33 @@ function OfferAdmin({ store, updateStore }) {
 function SettingsAdmin({ store, updateStore }) {
   const [draft, setDraft] = useState(store.settings);
   const save = () => updateStore((latest) => ({ ...latest, settings: { ...latest.settings, ...draft } }));
-  return <section className="admin-editor"><h2>Website Settings</h2><div className="form-grid">{Object.keys(draft).map((key) => <label key={key}>{key}<input value={draft[key] ?? ""} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} /></label>)}</div><button onClick={save}>Save Settings</button></section>;
+  return (
+    <section className="admin-editor">
+      <h2>Website Settings</h2>
+      <div className="form-grid settings-form">
+        <Field label="Site name" value={draft.siteName} onChange={(siteName) => setDraft({ ...draft, siteName })} />
+        <Field label="Tagline" value={draft.tagline} onChange={(tagline) => setDraft({ ...draft, tagline })} />
+        <Field label="WhatsApp number" value={draft.whatsappNumber} onChange={(whatsappNumber) => setDraft({ ...draft, whatsappNumber })} />
+        <Field label="Currency" value={draft.currency} onChange={(currency) => setDraft({ ...draft, currency })} />
+        <Field label="Contact email" value={draft.contact} onChange={(contact) => setDraft({ ...draft, contact })} />
+        <Field label="Instagram link" value={draft.instagram} onChange={(instagram) => setDraft({ ...draft, instagram })} />
+        <label className="image-field">Logo image URL
+          <input value={draft.logoImage || ""} onChange={(e) => setDraft({ ...draft, logoImage: e.target.value })} placeholder="https://..." />
+        </label>
+        <label className="image-field">Upload logo image
+          <input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files[0], (image) => setDraft({ ...draft, logoImage: image }))} />
+        </label>
+        {draft.logoImage && <div className="logo-preview"><img src={draft.logoImage} alt="Logo preview" /></div>}
+        <label>Footer text<textarea value={draft.footerText || ""} onChange={(e) => setDraft({ ...draft, footerText: e.target.value })} /></label>
+        <label>WhatsApp message<textarea value={draft.whatsappMessage || ""} onChange={(e) => setDraft({ ...draft, whatsappMessage: e.target.value })} /></label>
+      </div>
+      <button onClick={save}>Save Settings</button>
+    </section>
+  );
+}
+
+function Field({ label, value, onChange }) {
+  return <label>{label}<input value={value || ""} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
 function Editor({ title, list, pick, draft, save, remove, onNew }) {
