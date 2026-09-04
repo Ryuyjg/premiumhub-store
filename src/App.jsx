@@ -303,7 +303,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, dataStatus }) 
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} />}
-      {tab === "settings" && <SettingsAdmin store={store} updateStore={updateStore} />}
+      {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} />}
     </section>
   );
 }
@@ -373,7 +373,8 @@ function OfferAdmin({ store, updateStore }) {
 
 function SettingsAdmin({ store, updateStore }) {
   const [draft, setDraft] = useState(store.settings);
-  return <section className="admin-editor"><h2>Website Settings</h2><div className="form-grid">{Object.keys(draft).map((key) => <label key={key}>{key}<input value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} /></label>)}</div><button onClick={() => updateStore({ ...store, settings: draft })}>Save Settings</button></section>;
+  const save = () => updateStore((latest) => ({ ...latest, settings: { ...latest.settings, ...draft } }));
+  return <section className="admin-editor"><h2>Website Settings</h2><div className="form-grid">{Object.keys(draft).map((key) => <label key={key}>{key}<input value={draft[key] ?? ""} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} /></label>)}</div><button onClick={save}>Save Settings</button></section>;
 }
 
 function Editor({ title, list, pick, draft, save, remove, onNew }) {
