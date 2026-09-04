@@ -110,7 +110,7 @@ function App() {
   const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, setDataStatus };
   return (
     <div>
-      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} />
+      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
       {notice && <div className="toast" role="status">{notice}</div>}
       <main>
         {route === "/" && <Home {...props} />}
@@ -146,16 +146,19 @@ function hydrateCart(cart, ctx) {
   }).filter(Boolean);
 }
 
-function Header({ settings, cartCount, navigate }) {
+function Header({ settings, cartCount, navigate, route }) {
+  const isAdminRoute = route.startsWith("/admin");
   return (
     <header className="site-header">
       <button className="brand" onClick={() => navigate("/")}>
         <span className="brand-mark">PH</span><span>{settings.siteName}</span>
       </button>
-      <nav>
-        {["Home", "Categories", "Offers", "Products"].map((label) => <button key={label} onClick={() => navigate(label === "Home" ? "/" : `/${label.toLowerCase()}`)}>{label}</button>)}
-        <button className="cart-link" onClick={() => navigate("/cart")}>Cart <b>{cartCount}</b></button>
-      </nav>
+      {!isAdminRoute && (
+        <nav>
+          {["Home", "Categories", "Offers", "Products"].map((label) => <button key={label} onClick={() => navigate(label === "Home" ? "/" : `/${label.toLowerCase()}`)}>{label}</button>)}
+          <button className="cart-link" onClick={() => navigate("/cart")}>Cart <b>{cartCount}</b></button>
+        </nav>
+      )}
     </header>
   );
 }
