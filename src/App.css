@@ -192,7 +192,11 @@ footer button { background: transparent; color: #64748b; padding: 0; box-shadow:
 .admin-list button { display: flex; justify-content: space-between; gap: 12px; background: #f8fafc; color: #172033; border: 1px solid #e1e7f0; box-shadow: none; text-align: left; }
 .admin-list small { color: #64748b; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.product-form { grid-template-columns: 1fr; max-width: 760px; }
 .form-grid textarea, .form-grid .variation-editor, .form-grid .image-preview { grid-column: 1 / -1; }
+.product-form label { min-width: 0; }
+.toggle-row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.toggle-row label { display: inline-flex; gap: 6px; align-items: center; }
 label { color: #475569; display: grid; gap: 6px; align-content: center; }
 label input[type="checkbox"] { width: auto; margin-right: 8px; }
 .image-field input[type="file"] { padding: 10px; background: #f8fafc; }

@@ -341,7 +341,26 @@ function ProductAdmin({ store, updateStore }) {
 
 function ProductForm({ draft, setDraft, categories }) {
   const patch = (key, value) => setDraft({ ...draft, [key]: value });
-  return <div className="form-grid"><input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /><select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Image URL or data URL" /></label><label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label><div className="image-preview"><img src={draft.image} alt="Product preview" /></div><input type="number" value={draft.order} onChange={(e) => patch("order", Number(e.target.value))} placeholder="Display order" /><label>Current stock<input type="number" min="0" value={draft.stock ?? (draft.inStock ? 10 : 0)} onChange={(e) => { const stock = Math.max(0, Number(e.target.value)); setDraft({ ...draft, stock, inStock: stock > 0 }); }} /></label><textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description" /><textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description" /><textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /><label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label><label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label><VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} /></div>;
+  return (
+    <div className="form-grid product-form">
+      <label>Product name<input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /></label>
+      <label>Category<select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+      <label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Paste image URL or upload below" /></label>
+      <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label>
+      <div className="image-preview"><img src={draft.image} alt="Product preview" /></div>
+      <label>Current stock<input type="number" min="0" value={draft.stock ?? (draft.inStock ? 10 : 0)} onChange={(e) => { const stock = Math.max(0, Number(e.target.value)); setDraft({ ...draft, stock, inStock: stock > 0 }); }} /></label>
+      <label>Display order<input type="number" value={draft.order} onChange={(e) => patch("order", Number(e.target.value))} /></label>
+      <label>Short description<textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description shown on product cards" /></label>
+      <label>Full description<textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description shown on product details" /></label>
+      <label>Features<textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /></label>
+      <div className="toggle-row">
+        <label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label>
+        <label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label>
+        <label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label>
+      </div>
+      <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} />
+    </div>
+  );
 }
 
 function VariationEditor({ variations, setVariations, productId }) {
