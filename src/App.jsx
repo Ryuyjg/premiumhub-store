@@ -179,8 +179,12 @@ function Header({ settings, cartCount, navigate, route }) {
       </button>
       {!isAdminRoute && (
         <nav>
-          {["Home", "Categories", "Offers", "Products"].map((label) => <button key={label} onClick={() => navigate(label === "Home" ? "/" : `/${label.toLowerCase()}`)}>{label}</button>)}
-          <button className="cart-link" onClick={() => navigate("/cart")}>Cart <b>{cartCount}</b></button>
+          {["Home", "Categories", "Offers", "Products"].map((label) => {
+            const path = label === "Home" ? "/" : `/${label.toLowerCase()}`;
+            const active = path === "/" ? route === "/" : route.startsWith(path);
+            return <button className={active ? "active" : ""} key={label} onClick={() => navigate(path)}>{label}</button>;
+          })}
+          <button className={route.startsWith("/cart") ? "cart-link active" : "cart-link"} onClick={() => navigate("/cart")}>Cart <b>{cartCount}</b></button>
         </nav>
       )}
     </header>
