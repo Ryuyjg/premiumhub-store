@@ -298,8 +298,10 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, dataStatus }) 
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
+  const statusKind = dataStatus.toLowerCase().includes("fail") ? "error" : dataStatus.toLowerCase().includes("sav") ? "active" : "ready";
   return (
     <section className="admin page-top">
+      <div className={`admin-status-toast ${statusKind}`}>{dataStatus}</div>
       <div className="admin-head"><div><h1>Admin Dashboard</h1><span className="db-status">{dataStatus}</span></div><button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button></div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>

@@ -97,9 +97,15 @@ p { color: #5b677a; line-height: 1.65; }
 .section { padding-top: 34px; padding-bottom: 34px; }
 .page-top { padding-top: 48px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
-.category-grid, .product-grid, .offer-grid, .stats {
+.category-grid, .offer-grid, .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 280px));
+  justify-content: start;
   gap: 16px;
 }
 .category-card, .product-card, .offer-card, .cart-row, .summary, .admin-editor, .login {
@@ -179,6 +185,29 @@ footer button { background: transparent; color: #64748b; padding: 0; box-shadow:
 .admin { max-width: 1260px; }
 .admin-head { display: flex; justify-content: space-between; align-items: center; }
 .db-status { color: #0f766e; font-weight: 850; }
+.admin-status-toast {
+  position: fixed;
+  right: clamp(16px, 4vw, 34px);
+  bottom: 18px;
+  z-index: 20;
+  border: 1px solid #b8ddca;
+  border-radius: 8px;
+  background: #eefaf3;
+  color: #166534;
+  padding: 12px 14px;
+  font-weight: 900;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, .14);
+}
+.admin-status-toast.active {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.admin-status-toast.error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
 .stats { margin: 18px 0; }
 .stats div { background: #151b2d; color: #fff; border-radius: 8px; padding: 20px; }
 .stats strong { display: block; font-size: 34px; }
