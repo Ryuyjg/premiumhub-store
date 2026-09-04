@@ -2,6 +2,20 @@ export const logo = (text, bg, fg = "#fff") =>
   `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220"><rect width="320" height="220" rx="32" fill="${bg}"/><text x="50%" y="48%" text-anchor="middle" font-family="Inter,Arial" font-size="46" font-weight="800" fill="${fg}">${text}</text><text x="50%" y="68%" text-anchor="middle" font-family="Inter,Arial" font-size="19" font-weight="600" fill="${fg}" opacity=".76">Premium Hub</text></svg>`)}`;
 
 export function product(id, name, categoryId, description, features, image, featured, order, variations) {
+  const builtVariations = variations.map(([name, price, originalPrice, inStock, stock], index) => {
+    const quantity = stock ?? (inStock ? 10 : 0);
+    return {
+      id: `${id}-${index}`,
+      name,
+      price,
+      originalPrice,
+      stock: quantity,
+      inStock: quantity > 0,
+      sku: `${id.toUpperCase()}-${index + 1}`,
+      order: index + 1,
+    };
+  });
+
   return {
     id,
     name,
@@ -12,18 +26,11 @@ export function product(id, name, categoryId, description, features, image, feat
     description,
     features,
     active: true,
-    inStock: true,
+    stock: builtVariations.reduce((sum, variation) => sum + variation.stock, 0),
+    inStock: builtVariations.some((variation) => variation.inStock),
     featured,
     order,
-    variations: variations.map(([name, price, originalPrice, inStock], index) => ({
-      id: `${id}-${index}`,
-      name,
-      price,
-      originalPrice,
-      inStock,
-      sku: `${id.toUpperCase()}-${index + 1}`,
-      order: index + 1,
-    })),
+    variations: builtVariations,
   };
 }
 

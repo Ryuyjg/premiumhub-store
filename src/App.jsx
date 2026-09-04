@@ -8,6 +8,10 @@ const CART_KEY = "premium-hub-cart-v1";
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const money = (value, currency) => `${currency}${Number(value || 0).toLocaleString("en-IN")}`;
+const stockNumber = (item) => Number(item?.stock ?? item?.stockQty ?? 0);
+const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !== undefined;
+const isAvailable = (item) => Boolean(item?.inStock) && (!hasCustomStock(item) || stockNumber(item) > 0);
+const stockText = (item) => isAvailable(item) ? (hasCustomStock(item) ? `${stockNumber(item)} in stock` : "In Stock") : "Stock Out";
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -93,7 +97,7 @@ function App() {
   const addToCart = (productId, variationId, quantity = 1) => {
     const product = ctx.productById[productId];
     const variation = product?.variations.find((item) => item.id === variationId);
-    if (!product?.active || !product?.inStock || !variation?.inStock) return false;
+    if (!product?.active || !isAvailable(product) || !isAvailable(variation)) return false;
     setCart((items) => {
       const found = items.find((item) => item.productId === productId && item.variationId === variationId);
       if (found) return items.map((item) => item === found ? { ...item, quantity: item.quantity + quantity } : item);
@@ -138,7 +142,7 @@ function hydrateCart(cart, ctx) {
     const product = ctx.productById[item.productId];
     const variation = product?.variations.find((v) => v.id === item.variationId);
     if (!product || !variation) return null;
-    return { ...item, product, variation, lineTotal: variation.price * item.quantity, purchasable: product.active && product.inStock && variation.inStock };
+    return { ...item, product, variation, lineTotal: variation.price * item.quantity, purchasable: product.active && isAvailable(product) && isAvailable(variation) };
   }).filter(Boolean);
 }
 
@@ -201,13 +205,16 @@ function ProductGrid({ products, ctx, settings, addToCart, navigate }) {
 }
 
 function ProductCard({ product, category, settings, addToCart, navigate }) {
-  const first = product.variations.find((v) => v.inStock);
-  const disabled = !product.inStock || !first;
+  const first = product.variations.find((v) => isAvailable(v));
+  const disabled = !isAvailable(product) || !first;
   return (
     <article className="product-card">
-      <img src={product.image} alt={`${product.name} logo`} />
+      <div className="image-wrap">
+        <img src={product.image} alt={`${product.name} logo`} />
+        {disabled && <span className="stock-badge">Stock Out</span>}
+      </div>
       <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
-      <div className="card-foot"><strong>{first ? `From ${money(first.price, settings.currency)}` : "Unavailable"}</strong><span className={disabled ? "stock out" : "stock"}>{disabled ? "Out of Stock" : "In Stock"}</span></div>
+      <div className="card-foot"><strong>{first ? `From ${money(first.price, settings.currency)}` : "Unavailable"}</strong><span className={disabled ? "stock out" : "stock"}>{disabled ? "Stock Out" : stockText(product)}</span></div>
       <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={() => addToCart(product.id, first.id)}>Add to Cart</button></div>
     </article>
   );
@@ -232,16 +239,20 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   const [quantity, setQuantity] = useState(1);
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
   const selected = product.variations.find((v) => v.id === variationId);
-  const canBuy = product.active && product.inStock && selected?.inStock;
+  const canBuy = product.active && isAvailable(product) && isAvailable(selected);
   const buy = () => { if (addToCart(product.id, selected.id, quantity)) navigate("/cart"); };
   return (
     <section className="detail page-top">
-      <img src={product.image} alt={`${product.name} logo`} />
+      <div className="detail-image image-wrap">
+        <img src={product.image} alt={`${product.name} logo`} />
+        {!isAvailable(product) && <span className="stock-badge">Stock Out</span>}
+      </div>
       <div>
         <span className="pill">{ctx.categoryById[product.categoryId]?.name}</span><h1>{product.name}</h1><p>{product.description}</p>
+        <span className={isAvailable(product) ? "stock detail-stock" : "stock out detail-stock"}>{stockText(product)}</span>
         <div className="feature-list">{product.features.map((f) => <span key={f}>{f}</span>)}</div>
         <h2>Choose a plan</h2>
-        <div className="plans">{product.variations.map((v) => <button className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small>{v.inStock ? "In Stock" : "Out of Stock"}</small></button>)}</div>
+        <div className="plans">{product.variations.map((v) => <button className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={isAvailable(v) ? "" : "danger"}>{stockText(v)}</small></button>)}</div>
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button onClick={() => setQuantity(quantity + 1)}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
       </div>
@@ -264,8 +275,8 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate }) {
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
     const variation = product?.variations.find((v) => v.id === offer.variationId);
-    const canBuy = product?.active && product?.inStock && variation?.inStock;
-    return <article className="offer-card" key={offer.id}><img src={offer.image || product?.image} alt={offer.title} /><div><span className="pill">Deal</span><h3>{offer.title}</h3><p>{offer.description}</p><strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong><div className="card-actions"><button onClick={() => navigate(`/products/${product?.slug}`)}>View</button><button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id)}>Add</button></div></div></article>;
+    const canBuy = product?.active && isAvailable(product) && isAvailable(variation);
+    return <article className="offer-card" key={offer.id}><div className="image-wrap"><img src={offer.image || product?.image} alt={offer.title} />{!canBuy && <span className="stock-badge">Stock Out</span>}</div><div><span className="pill">Deal</span><h3>{offer.title}</h3><p>{offer.description}</p><strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong><div className="card-actions"><button onClick={() => navigate(`/products/${product?.slug}`)}>View</button><button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id)}>Add</button></div></div></article>;
   })}</div>;
 }
 
@@ -315,20 +326,31 @@ function Login({ onLogin }) {
 }
 
 function ProductAdmin({ store, updateStore }) {
-  const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, featured: false, order: store.products.length + 1, variations: [] };
+  const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
   const [draft, setDraft] = useState(blank);
-  const save = () => updateStore((s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features) }] }));
+  const save = () => {
+    const stock = draft.stock ?? (draft.inStock ? 10 : 0);
+    const variations = draft.variations.map((variation) => {
+      const variationStock = variation.stock ?? (variation.inStock ? 10 : 0);
+      return { ...variation, stock: variationStock, inStock: variationStock > 0 };
+    });
+    updateStore((s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, inStock: stock > 0, variations }] }));
+  };
   return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }))} />;
 }
 
 function ProductForm({ draft, setDraft, categories }) {
   const patch = (key, value) => setDraft({ ...draft, [key]: value });
-  return <div className="form-grid"><input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /><select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Image URL or data URL" /><input type="number" value={draft.order} onChange={(e) => patch("order", Number(e.target.value))} placeholder="Display order" /><textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description" /><textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description" /><textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /><label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label><label><input type="checkbox" checked={draft.inStock} onChange={(e) => patch("inStock", e.target.checked)} /> Product in stock</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label><VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} /></div>;
+  return <div className="form-grid"><input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /><select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select><label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Image URL or data URL" /></label><label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label><div className="image-preview"><img src={draft.image} alt="Product preview" /></div><input type="number" value={draft.order} onChange={(e) => patch("order", Number(e.target.value))} placeholder="Display order" /><label>Current stock<input type="number" min="0" value={draft.stock ?? (draft.inStock ? 10 : 0)} onChange={(e) => { const stock = Math.max(0, Number(e.target.value)); setDraft({ ...draft, stock, inStock: stock > 0 }); }} /></label><textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description" /><textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description" /><textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /><label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label><label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label><VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} /></div>;
 }
 
 function VariationEditor({ variations, setVariations, productId }) {
   const set = (id, key, value) => setVariations(variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
-  return <div className="variation-editor"><h3>Variations</h3>{variations.map((v) => <div className="variation-row" key={v.id}><input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /><input type="number" value={v.price} onChange={(e) => set(v.id, "price", Number(e.target.value))} /><input type="number" value={v.originalPrice || ""} onChange={(e) => set(v.id, "originalPrice", Number(e.target.value))} placeholder="Original" /><label><input type="checkbox" checked={v.inStock} onChange={(e) => set(v.id, "inStock", e.target.checked)} /> In stock</label><button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button></div>)}<button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: 0, originalPrice: 0, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button></div>;
+  const setStock = (id, value) => {
+    const stock = Math.max(0, Number(value));
+    setVariations(variations.map((v) => v.id === id ? { ...v, stock, inStock: stock > 0 } : v));
+  };
+  return <div className="variation-editor"><h3>Variations</h3>{variations.map((v) => <div className="variation-row" key={v.id}><input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /><input type="number" value={v.price} onChange={(e) => set(v.id, "price", Number(e.target.value))} /><input type="number" value={v.originalPrice || ""} onChange={(e) => set(v.id, "originalPrice", Number(e.target.value))} placeholder="Original" /><input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /><label><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label><button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button></div>)}<button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: 0, originalPrice: 0, stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button></div>;
 }
 
 function CategoryAdmin({ store, updateStore }) {
@@ -360,6 +382,13 @@ function Editor({ title, list, pick, draft, save, remove, onNew }) {
 
 function textToList(value) {
   return Array.isArray(value) ? value : value.split("\n").map((item) => item.trim()).filter(Boolean);
+}
+
+function readImageFile(file, done) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => done(reader.result);
+  reader.readAsDataURL(file);
 }
 
 function Footer({ settings }) {
