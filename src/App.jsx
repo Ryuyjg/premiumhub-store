@@ -488,7 +488,7 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
         <label>Footer text<textarea value={draft.footerText || ""} onChange={(e) => setDraft({ ...draft, footerText: e.target.value })} /></label>
         <label>WhatsApp message<textarea value={draft.whatsappMessage || ""} onChange={(e) => setDraft({ ...draft, whatsappMessage: e.target.value })} /></label>
       </div>
-      <div className="actions editor-actions"><button onClick={save}>Save Settings</button><AdminStatusMessage message={saveStatus} /></div>
+      <div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save Settings</button></div>
     </section>
   );
 }
@@ -498,7 +498,7 @@ function Field({ label, value, onChange }) {
 }
 
 function Editor({ title, list, pick, draft, save, remove, onNew, saveStatus }) {
-  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div>{draft}<div className="actions editor-actions"><button onClick={save}>Save</button><button className="ghost" onClick={remove}>Delete</button><AdminStatusMessage message={saveStatus} /></div></div></div></section>;
+  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div>{draft}<div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save</button><button className="ghost" onClick={remove}>Delete</button></div></div></div></section>;
 }
 
 function AdminStatusMessage({ message }) {
