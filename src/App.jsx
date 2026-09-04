@@ -34,6 +34,7 @@ function App() {
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [notice, setNotice] = useState("");
   const [dataStatus, setDataStatus] = useState("Loading catalog...");
+  const [saveStatus, setSaveStatus] = useState("");
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -77,7 +78,7 @@ function App() {
     const updated = typeof next === "function" ? next(store) : next;
     setStore(updated);
     localStorage.setItem(STORE_KEY, JSON.stringify(updated));
-    setDataStatus("Saving...");
+    setSaveStatus("Saving changes...");
     try {
       const response = await fetch("/api/catalog", {
         method: "PUT",
@@ -89,9 +90,9 @@ function App() {
       const saved = await response.json();
       setStore(saved);
       localStorage.setItem(STORE_KEY, JSON.stringify(saved));
-      setDataStatus("Saved to database");
+      setSaveStatus("Saved changes to database");
     } catch {
-      setDataStatus("Save failed. Check admin login and database settings.");
+      setSaveStatus("Save failed. Check admin login and database settings.");
     }
   };
   const addToCart = (productId, variationId, quantity = 1) => {
@@ -107,7 +108,7 @@ function App() {
     return true;
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, setDataStatus };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setDataStatus };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
@@ -294,14 +295,15 @@ function Cart({ cartLines, setCart, store }) {
   );
 }
 
-function Admin({ store, updateStore, adminAuthed, setAdminAuthed, dataStatus }) {
+function Admin({ store, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus }) {
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
-  const statusKind = dataStatus.toLowerCase().includes("fail") ? "error" : dataStatus.toLowerCase().includes("sav") ? "active" : "ready";
+  const visibleStatus = saveStatus || dataStatus;
+  const statusKind = visibleStatus.toLowerCase().includes("fail") ? "error" : visibleStatus.toLowerCase().includes("sav") ? "active" : "ready";
   return (
     <section className="admin page-top">
-      <div className={`admin-status-toast ${statusKind}`}>{dataStatus}</div>
+      <div className={`admin-status-toast ${statusKind}`}>{visibleStatus}</div>
       <div className="admin-head"><div><h1>Admin Dashboard</h1><span className="db-status">{dataStatus}</span></div><button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button></div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
