@@ -12,6 +12,7 @@ const stockNumber = (item) => Number(item?.stock ?? item?.stockQty ?? 0);
 const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !== undefined;
 const isAvailable = (item) => Boolean(item?.inStock) && (!hasCustomStock(item) || stockNumber(item) > 0);
 const stockText = (item) => isAvailable(item) ? (hasCustomStock(item) ? `${stockNumber(item)} in stock` : "In Stock") : "Stock Out";
+const isBlank = (value) => value === "" || value === null || value === undefined;
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -372,7 +373,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
-      {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} saveStatus={saveStatus} />}
     </section>
@@ -400,19 +401,32 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
   const [draft, setDraft] = useState(blank);
   const save = () => {
-    const stock = draft.stock ?? (draft.inStock ? 10 : 0);
-    const missingPrice = draft.variations.some((variation) => variation.price === "" || variation.price === null || variation.price === undefined);
+    if (isBlank(draft.stock)) {
+      setSaveStatus("Current stock is required.");
+      return;
+    }
+    if (isBlank(draft.order)) {
+      setSaveStatus("Display order is required.");
+      return;
+    }
+    const missingPrice = draft.variations.some((variation) => isBlank(variation.price));
     if (missingPrice) {
       setSaveStatus("Price is required.");
       return;
     }
+    const missingVariationStock = draft.variations.some((variation) => isBlank(variation.stock));
+    if (missingVariationStock) {
+      setSaveStatus("Current stock is required.");
+      return;
+    }
+    const stock = Math.max(0, Number(draft.stock));
     const variations = draft.variations.map((variation) => {
-      const variationStock = variation.stock ?? (variation.inStock ? 10 : 0);
+      const variationStock = Math.max(0, Number(variation.stock));
       const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
       return { ...variation, price: Number(variation.price), originalPrice, stock: variationStock, inStock: variationStock > 0 };
     });
     updateStore(
-      (s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, inStock: stock > 0, variations }] }),
+      (s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, order: Number(draft.order), inStock: stock > 0, variations }] }),
       "✓ Product saved successfully",
       "✕ Failed to save product. Please try again."
     );
@@ -429,8 +443,8 @@ function ProductForm({ draft, setDraft, categories }) {
       <label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Paste image URL or upload below" /></label>
       <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label>
       <div className="image-preview"><img src={draft.image} alt="Product preview" /></div>
-      <label>Current stock<input type="number" min="0" value={draft.stock ?? (draft.inStock ? 10 : 0)} onChange={(e) => { const stock = Math.max(0, Number(e.target.value)); setDraft({ ...draft, stock, inStock: stock > 0 }); }} /></label>
-      <label>Display order<input type="number" value={draft.order} onChange={(e) => patch("order", Number(e.target.value))} /></label>
+      <label>Current stock<input type="number" min="0" value={draft.stock ?? ""} onChange={(e) => { const stock = e.target.value; setDraft({ ...draft, stock, inStock: stock !== "" && Number(stock) > 0 }); }} /></label>
+      <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => patch("order", e.target.value)} /></label>
       <label>Short description<textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description shown on product cards" /></label>
       <label>Full description<textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description shown on product details" /></label>
       <label>Features<textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /></label>
@@ -447,8 +461,7 @@ function ProductForm({ draft, setDraft, categories }) {
 function VariationEditor({ variations, setVariations, productId }) {
   const set = (id, key, value) => setVariations(variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
   const setStock = (id, value) => {
-    const stock = Math.max(0, Number(value));
-    setVariations(variations.map((v) => v.id === id ? { ...v, stock, inStock: stock > 0 } : v));
+    setVariations(variations.map((v) => v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v));
   };
   return (
     <div className="variation-editor">
@@ -468,11 +481,17 @@ function VariationEditor({ variations, setVariations, productId }) {
   );
 }
 
-function CategoryAdmin({ store, updateStore, saveStatus }) {
+function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const blank = { id: uid("category"), name: "", slug: "", description: "", active: true, featured: false, order: store.categories.length + 1, image: logo("CAT", "#475569") };
   const [draft, setDraft] = useState(blank);
-  const save = () => updateStore((s) => ({ ...s, categories: [...s.categories.filter((c) => c.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name) }] }), "✓ Category saved successfully", "✕ Failed to save category. Please try again.");
-  const form = <div className="form-grid"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Image URL" /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="number" value={draft.order} onChange={(e) => setDraft({ ...draft, order: Number(e.target.value) })} /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label></div>;
+  const save = () => {
+    if (isBlank(draft.order)) {
+      setSaveStatus("Display order is required.");
+      return;
+    }
+    updateStore((s) => ({ ...s, categories: [...s.categories.filter((c) => c.id !== draft.id), { ...draft, order: Number(draft.order), slug: draft.slug || slugify(draft.name) }] }), "✓ Category saved successfully", "✕ Failed to save category. Please try again.");
+  };
+  const form = <div className="form-grid"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Image URL" /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="number" value={draft.order ?? ""} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label></div>;
   return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
 }
 
