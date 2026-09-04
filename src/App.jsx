@@ -114,7 +114,7 @@ function App() {
     return true;
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setDataStatus };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
@@ -359,7 +359,7 @@ function Cart({ cartLines, setCart, store }) {
   );
 }
 
-function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus }) {
+function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
@@ -371,9 +371,9 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus }) 
       </div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
-      {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
-      {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} />}
+      {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} saveStatus={saveStatus} />}
     </section>
   );
@@ -396,14 +396,20 @@ function Login({ onLogin }) {
   return <section className="login page-top"><h1>Admin Login</h1><p>Use the secure admin password configured in Vercel.</p><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" /><button onClick={login}>Login</button>{error && <small className="danger">{error}</small>}</section>;
 }
 
-function ProductAdmin({ store, updateStore, saveStatus }) {
+function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
   const [draft, setDraft] = useState(blank);
   const save = () => {
     const stock = draft.stock ?? (draft.inStock ? 10 : 0);
+    const missingPrice = draft.variations.some((variation) => variation.price === "" || variation.price === null || variation.price === undefined);
+    if (missingPrice) {
+      setSaveStatus("Price is required.");
+      return;
+    }
     const variations = draft.variations.map((variation) => {
       const variationStock = variation.stock ?? (variation.inStock ? 10 : 0);
-      return { ...variation, stock: variationStock, inStock: variationStock > 0 };
+      const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
+      return { ...variation, price: Number(variation.price), originalPrice, stock: variationStock, inStock: variationStock > 0 };
     });
     updateStore(
       (s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, inStock: stock > 0, variations }] }),
@@ -444,7 +450,22 @@ function VariationEditor({ variations, setVariations, productId }) {
     const stock = Math.max(0, Number(value));
     setVariations(variations.map((v) => v.id === id ? { ...v, stock, inStock: stock > 0 } : v));
   };
-  return <div className="variation-editor"><h3>Variations</h3>{variations.map((v) => <div className="variation-row" key={v.id}><input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /><input type="number" value={v.price} onChange={(e) => set(v.id, "price", Number(e.target.value))} /><input type="number" value={v.originalPrice || ""} onChange={(e) => set(v.id, "originalPrice", Number(e.target.value))} placeholder="Original" /><input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /><label><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label><button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button></div>)}<button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: 0, originalPrice: 0, stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button></div>;
+  return (
+    <div className="variation-editor">
+      <h3>Variations</h3>
+      {variations.map((v) => (
+        <div className="variation-row" key={v.id}>
+          <label>Plan name<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /></label>
+          <label>Selling price<input type="number" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="Current price" /></label>
+          <label>Original price<input type="number" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="Old price" /></label>
+          <label>Current stock<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /></label>
+          <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
+          <button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button>
+        </div>
+      ))}
+      <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button>
+    </div>
+  );
 }
 
 function CategoryAdmin({ store, updateStore, saveStatus }) {
@@ -455,13 +476,24 @@ function CategoryAdmin({ store, updateStore, saveStatus }) {
   return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
 }
 
-function OfferAdmin({ store, updateStore, saveStatus }) {
+function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const first = store.products[0];
-  const blank = { id: uid("offer"), title: "", productId: first?.id || "", variationId: first?.variations[0]?.id || "", price: 0, originalPrice: 0, description: "", startDate: "", endDate: "", active: true, image: "" };
+  const blank = { id: uid("offer"), title: "", productId: first?.id || "", variationId: first?.variations[0]?.id || "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
   const [draft, setDraft] = useState(blank);
   const product = store.products.find((p) => p.id === draft.productId);
-  const save = () => updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), draft] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
-  const form = <div className="form-grid"><input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /><select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select><input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} /><input type="number" value={draft.originalPrice} onChange={(e) => setDraft({ ...draft, originalPrice: Number(e.target.value) })} /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /><input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Offer image URL" /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label></div>;
+  const save = () => {
+    if (draft.price === "" || draft.price === null || draft.price === undefined) {
+      setSaveStatus("Price is required.");
+      return;
+    }
+    const offer = {
+      ...draft,
+      price: Number(draft.price),
+      originalPrice: draft.originalPrice === "" || draft.originalPrice === null || draft.originalPrice === undefined ? "" : Number(draft.originalPrice),
+    };
+    updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), offer] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
+  };
+  const form = <div className="form-grid"><label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label><label>Product<select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label><label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label><label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label><label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label><label>Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Offer image URL" /></label><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label></div>;
   return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
 }
 
@@ -503,7 +535,8 @@ function Editor({ title, list, pick, draft, save, remove, onNew, saveStatus }) {
 
 function AdminStatusMessage({ message }) {
   if (!message) return null;
-  const kind = message.toLowerCase().includes("failed") ? "error" : "active";
+  const normalized = message.toLowerCase();
+  const kind = normalized.includes("failed") || normalized.includes("required") ? "error" : "active";
   return <div className={`admin-status ${kind}`} role="status">{message}</div>;
 }
 
