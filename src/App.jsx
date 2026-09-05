@@ -23,6 +23,13 @@ const productStockText = (product) => hasAvailableVariation(product) ? "In Stock
 const whatsappGroupUrl = (settings) => settings.whatsappGroupLink?.trim();
 const twoDigits = (value) => String(value).padStart(2, "0");
 const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 3600))}:${twoDigits(Math.floor((seconds % 3600) / 60))}:${twoDigits(seconds % 60)}`;
+const setSavedStore = (data) => {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+  } catch {
+    // Uploaded images can exceed browser storage; database saving should still continue.
+  }
+};
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -63,7 +70,7 @@ function App() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Catalog API failed")))
       .then((data) => {
         setStore(data);
-        localStorage.setItem(STORE_KEY, JSON.stringify(data));
+        setSavedStore(data);
         setDataStatus("Database connected");
       })
       .catch(() => {
@@ -110,7 +117,7 @@ function App() {
     const updated = typeof next === "function" ? next(store) : next;
     setSaveStatus("Saving...");
     setStore(updated);
-    localStorage.setItem(STORE_KEY, JSON.stringify(updated));
+    setSavedStore(updated);
     try {
       const response = await fetch("/api/catalog", {
         method: "PUT",
@@ -121,7 +128,7 @@ function App() {
       if (!response.ok) throw new Error("Save failed");
       const saved = await response.json();
       setStore(saved);
-      localStorage.setItem(STORE_KEY, JSON.stringify(saved));
+      setSavedStore(saved);
       setSaveStatus(successMessage);
     } catch {
       setSaveStatus(errorMessage);
@@ -788,7 +795,23 @@ function textToList(value) {
 function readImageFile(file, done) {
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => done(reader.result);
+  reader.onload = () => {
+    const image = new Image();
+    image.onload = () => {
+      const maxSize = 720;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, width, height);
+      done(canvas.toDataURL("image/webp", 0.82));
+    };
+    image.onerror = () => done(reader.result);
+    image.src = reader.result;
+  };
   reader.readAsDataURL(file);
 }
 
