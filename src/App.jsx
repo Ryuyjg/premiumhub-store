@@ -220,6 +220,12 @@ function Home({ store, ctx, addToCart, navigate }) {
           <h1>{store.settings.tagline}</h1>
           <p>Browse trusted OTT, AI, music and editing plans. Pick a variation, review your cart, and place the order on WhatsApp in one tap.</p>
           <div className="actions"><button onClick={() => navigate("/products")}>View All Products</button><button className="ghost" onClick={() => navigate("/offers")}>See Offers</button></div>
+          <div className="quick-nav" aria-label="Quick store navigation">
+            <button onClick={() => navigate("/products")}>Products</button>
+            <button onClick={() => navigate("/categories")}>Categories</button>
+            <button onClick={() => navigate("/offers")}>Offers</button>
+            <a href={`https://wa.me/${store.settings.whatsappNumber}`} target="_blank">WhatsApp</a>
+          </div>
         </div>
         <div className="hero-panel">
           <span>Live catalog</span><strong>{ctx.products.length} products</strong><small>{ctx.activeOffers.length} active offers</small>
