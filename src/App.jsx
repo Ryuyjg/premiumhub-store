@@ -181,7 +181,6 @@ function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
   const [menuOpen, setMenuOpen] = useState(true);
   const go = (path) => {
-    setMenuOpen(false);
     navigate(path);
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
