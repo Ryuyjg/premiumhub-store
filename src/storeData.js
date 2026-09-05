@@ -40,6 +40,7 @@ export const seedData = {
     logoImage: "",
     tagline: "Premium Subscriptions. Better Prices.",
     whatsappNumber: "919876543210",
+    whatsappGroupLink: "",
     whatsappMessage: "Hello Premium Hub, I would like to place an order.",
     currency: "₹",
     contact: "support@premiumhub.local",

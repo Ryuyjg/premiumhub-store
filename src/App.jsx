@@ -20,6 +20,7 @@ const lowestVariation = (product) => {
   return variations.sort((a, b) => Number(a.price) - Number(b.price))[0];
 };
 const productStockText = (product) => hasAvailableVariation(product) ? "In Stock" : "Stock Out";
+const whatsappGroupUrl = (settings) => settings.whatsappGroupLink?.trim();
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -325,7 +326,10 @@ function Home({ store, ctx, addToCart, orderNow, navigate }) {
       </Section>
       <section className="contact-cta">
         <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
-        <a href={`https://wa.me/${store.settings.whatsappNumber}`} target="_blank">Contact on WhatsApp</a>
+        <div className="contact-links">
+          <a href={`https://wa.me/${store.settings.whatsappNumber}`} target="_blank">Contact on WhatsApp</a>
+          {whatsappGroupUrl(store.settings) && <a href={whatsappGroupUrl(store.settings)} target="_blank">Join WhatsApp Group</a>}
+        </div>
       </section>
     </>
   );
@@ -690,6 +694,7 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
         <Field label="Site name" value={draft.siteName} onChange={(siteName) => setDraft({ ...draft, siteName })} />
         <Field label="Tagline" value={draft.tagline} onChange={(tagline) => setDraft({ ...draft, tagline })} />
         <Field label="WhatsApp number" value={draft.whatsappNumber} onChange={(whatsappNumber) => setDraft({ ...draft, whatsappNumber })} />
+        <Field label="WhatsApp group link" value={draft.whatsappGroupLink} onChange={(whatsappGroupLink) => setDraft({ ...draft, whatsappGroupLink })} />
         <Field label="Currency" value={draft.currency} onChange={(currency) => setDraft({ ...draft, currency })} />
         <Field label="Contact email" value={draft.contact} onChange={(contact) => setDraft({ ...draft, contact })} />
         <Field label="Instagram link" value={draft.instagram} onChange={(instagram) => setDraft({ ...draft, instagram })} />
@@ -735,7 +740,7 @@ function readImageFile(file, done) {
 }
 
 function Footer({ settings }) {
-  return <footer><strong>{settings.siteName}</strong><span>{settings.footerText}</span><span>{settings.contact}</span><a href={settings.instagram}>Instagram</a></footer>;
+  return <footer><strong>{settings.siteName}</strong><span>{settings.footerText}</span><span>{settings.contact}</span><a href={settings.instagram}>Instagram</a>{whatsappGroupUrl(settings) && <a href={whatsappGroupUrl(settings)} target="_blank">WhatsApp Group</a>}</footer>;
 }
 
 function Empty({ title, action }) {
