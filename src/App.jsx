@@ -255,6 +255,7 @@ function StickyCartButton({ count, total, settings, navigate }) {
 function Home({ store, ctx, addToCart, orderNow, navigate }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
+  const [openTrendingId, setOpenTrendingId] = useState("");
   return (
     <>
       <section className="hero">
@@ -275,14 +276,31 @@ function Home({ store, ctx, addToCart, orderNow, navigate }) {
           <div className="hero-product-stack">
             {heroPicks.map((product) => {
               const first = lowestVariation(product);
+              const open = openTrendingId === product.id;
               return (
-                <button className="hero-product" key={product.id} onClick={() => navigate(`/products/${product.slug}`)}>
-                  <img src={product.image} alt={`${product.name} logo`} />
-                  <span>
-                    <b>{product.name}</b>
-                    <small>{first ? `From ${money(first.price, store.settings.currency)}` : `From ${money(0, store.settings.currency)}`}</small>
-                  </span>
-                </button>
+                <div className={open ? "hero-product-wrap open" : "hero-product-wrap"} key={product.id}>
+                  <button className="hero-product" onClick={() => setOpenTrendingId(open ? "" : product.id)}>
+                    <img src={product.image} alt={`${product.name} logo`} />
+                    <span>
+                      <b>{product.name}</b>
+                      <small>{first ? `From ${money(first.price, store.settings.currency)}` : `From ${money(0, store.settings.currency)}`}</small>
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="hero-plan-picker">
+                      {product.variations.map((variation) => {
+                        const stocked = isAvailable(variation);
+                        return (
+                          <div className={stocked ? "card-plan-row" : "card-plan-row out"} key={variation.id}>
+                            <div><b>{variation.name}</b><small>{money(variation.price, store.settings.currency)}</small></div>
+                            {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
+                          </div>
+                        );
+                      })}
+                      <button className="text-btn" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
