@@ -428,6 +428,85 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
 .card-plan-row.out {
   opacity: .76;
 }
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: end center;
+  padding: 18px;
+  background: rgba(5, 6, 10, .46);
+  backdrop-filter: blur(10px);
+}
+.order-sheet {
+  width: min(520px, 100%);
+  max-height: min(78vh, 640px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, .10);
+  backdrop-filter: blur(30px) saturate(180%);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+.sheet-head h2 {
+  margin-top: 6px;
+}
+.sheet-plans {
+  display: grid;
+  gap: 10px;
+}
+.sheet-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 22px;
+  background: rgba(5, 6, 10, .28);
+}
+.sheet-plan b,
+.sheet-plan small {
+  display: block;
+}
+.sheet-plan b {
+  color: var(--text-strong);
+}
+.sheet-plan small {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+.sheet-plan strong {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.sheet-plan button {
+  min-height: 42px;
+  border-radius: 16px;
+}
+.sheet-plan em {
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 107, 107, .25);
+  border-radius: 999px;
+  background: rgba(255, 107, 107, .12);
+  color: #FF6B6B;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.sheet-plan.out {
+  opacity: .76;
+}
 .card-actions button { flex: 1; padding: 10px; }
 .offer-card { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 14px; }
 .offer-card img { aspect-ratio: 1 / 1; }
@@ -2042,5 +2121,72 @@ footer {
 
   .variation-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Product details mobile safety: action bar and bottom nav must not cover plans. */
+@media (max-width: 820px) {
+  .detail.page-top {
+    padding-bottom: calc(176px + env(safe-area-inset-bottom));
+  }
+
+  .detail > div:last-child {
+    padding-bottom: 12px;
+  }
+
+  .detail .plans {
+    margin-bottom: 20px;
+  }
+
+  .detail .quantity {
+    margin-bottom: 18px;
+  }
+
+  .detail .actions {
+    position: static;
+    z-index: 10;
+    margin: 18px -2px 0;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 24px;
+    background: rgba(255, 255, 255, .11);
+    backdrop-filter: blur(30px) saturate(180%);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .18);
+  }
+
+  main.with-sticky-cart .detail .actions {
+    bottom: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .detail.page-top {
+    padding-bottom: calc(166px + env(safe-area-inset-bottom));
+  }
+
+  .detail .actions {
+    bottom: auto;
+  }
+
+  .sheet-backdrop {
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .order-sheet {
+    max-height: 82vh;
+    padding: 14px;
+    border-radius: 26px;
+  }
+
+  .sheet-plan {
+    grid-template-columns: 1fr auto;
+  }
+
+  .sheet-plan button,
+  .sheet-plan em {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
   }
 }

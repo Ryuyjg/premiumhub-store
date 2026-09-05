@@ -43,6 +43,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [dataStatus, setDataStatus] = useState("Loading catalog...");
   const [saveStatus, setSaveStatus] = useState("");
+  const [orderProductId, setOrderProductId] = useState("");
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -121,8 +122,24 @@ function App() {
     setNotice(`${product.name} (${variation.name}) added to cart`);
     return true;
   };
+  const orderNow = (productId) => {
+    const product = ctx.productById[productId];
+    const available = availableVariations(product);
+    if (!product?.active || !available.length) return;
+    if (available.length === 1) {
+      if (addToCart(product.id, available[0].id)) navigate("/cart");
+      return;
+    }
+    setOrderProductId(product.id);
+  };
+  const addVariationAndCart = (productId, variationId) => {
+    if (addToCart(productId, variationId)) {
+      setOrderProductId("");
+      navigate("/cart");
+    }
+  };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
@@ -137,6 +154,7 @@ function App() {
           {route.startsWith("/admin") && <Admin {...props} />}
         </RouteErrorBoundary>
       </main>
+      {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
       {showStickyCart && <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} navigate={navigate} />}
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
@@ -234,7 +252,7 @@ function StickyCartButton({ count, total, settings, navigate }) {
   );
 }
 
-function Home({ store, ctx, addToCart, navigate }) {
+function Home({ store, ctx, addToCart, orderNow, navigate }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   return (
@@ -281,7 +299,7 @@ function Home({ store, ctx, addToCart, navigate }) {
         <OfferGrid offers={ctx.activeOffers.slice(0, 3)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />
       </Section>
       <Section title="Featured Products" action="View all" onAction={() => navigate("/products")}>
-        <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />
+        <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />
       </Section>
       <section className="contact-cta">
         <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
@@ -299,25 +317,15 @@ function CategoryGrid({ categories, navigate }) {
   return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
 
-function ProductGrid({ products, ctx, settings, addToCart, navigate }) {
-  return <div className="product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} settings={settings} addToCart={addToCart} navigate={navigate} />)}</div>;
+function ProductGrid({ products, ctx, settings, addToCart, orderNow, navigate }) {
+  return <div className="product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} settings={settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />)}</div>;
 }
 
-function ProductCard({ product, category, settings, addToCart, navigate }) {
-  const [choosing, setChoosing] = useState(false);
+function ProductCard({ product, category, settings, orderNow, navigate }) {
   const available = availableVariations(product);
   const first = available[0];
   const priceFrom = lowestVariation(product);
-  const hasMultiple = product.variations.length > 1;
   const disabled = !product.active || !first;
-  const chooseOrAdd = () => {
-    if (disabled) return;
-    if (hasMultiple) {
-      setChoosing((open) => !open);
-      return;
-    }
-    addToCart(product.id, first.id);
-  };
   return (
     <article className="product-card">
       <div className="image-wrap">
@@ -326,26 +334,46 @@ function ProductCard({ product, category, settings, addToCart, navigate }) {
       </div>
       <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
       <div className="card-foot"><strong>{priceFrom ? `From ${money(priceFrom.price, settings.currency)}` : `From ${money(0, settings.currency)}`}</strong><span className={disabled ? "stock out" : "stock"}>{productStockText(product)}</span></div>
-      {choosing && hasMultiple && (
-        <div className="card-plan-picker">
-          <span>Choose plan</span>
-          {product.variations.map((variation) => {
-            const stocked = isAvailable(variation);
-            return (
-              <div className={stocked ? "card-plan-row" : "card-plan-row out"} key={variation.id}>
-                <div><b>{variation.name}</b><small>{money(variation.price, settings.currency)}</small></div>
-                {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={chooseOrAdd}>{hasMultiple ? (choosing ? "Hide Plans" : "Add to Cart") : "Add to Cart"}</button></div>
+      <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={() => orderNow(product.id)}>Order Now</button></div>
     </article>
   );
 }
 
-function Products({ store, ctx, slug, addToCart, navigate }) {
+function OrderSheet({ product, settings, onClose, onOrder, navigate }) {
+  if (!product) return null;
+  return (
+    <div className="sheet-backdrop" role="presentation" onClick={onClose}>
+      <section className="order-sheet" role="dialog" aria-modal="true" aria-label={`Choose ${product.name} plan`} onClick={(event) => event.stopPropagation()}>
+        <div className="sheet-head">
+          <div>
+            <span className="pill">Choose plan</span>
+            <h2>{product.name}</h2>
+          </div>
+          <button className="ghost" onClick={onClose}>Close</button>
+        </div>
+        <div className="sheet-plans">
+          {product.variations.map((variation) => {
+            const stocked = isAvailable(variation);
+            return (
+              <div className={stocked ? "sheet-plan" : "sheet-plan out"} key={variation.id}>
+                <div>
+                  <b>{variation.name}</b>
+                  {variation.shortDescription && <small>{variation.shortDescription}</small>}
+                  {!variation.shortDescription && <small>{stockText(variation)}</small>}
+                </div>
+                <strong>{money(variation.price, settings.currency)}</strong>
+                {stocked ? <button onClick={() => onOrder(product.id, variation.id)}>Order Now</button> : <em>Stock Out</em>}
+              </div>
+            );
+          })}
+        </div>
+        <button className="text-btn" onClick={() => { onClose(); navigate(`/products/${product.slug}`); }}>View full details</button>
+      </section>
+    </div>
+  );
+}
+
+function Products({ store, ctx, slug, addToCart, orderNow, navigate }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   if (slug) return <ProductDetails product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />;
@@ -354,7 +382,7 @@ function Products({ store, ctx, slug, addToCart, navigate }) {
     <section className="section page-top">
       <div className="section-head"><h1>Products</h1></div>
       <div className="filters"><input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="all">All categories</option>{ctx.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />
+      <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />
     </section>
   );
 }
@@ -379,7 +407,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
         <h2>Choose a plan</h2>
         <div className="plans">{product.variations.map((v) => {
           const stocked = isAvailable(v);
-          return <button disabled={!stocked} className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={stocked ? "" : "danger"}>{stockText(v)}</small></button>;
+          return <button disabled={!stocked} className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={stocked ? "" : "danger"}>{v.shortDescription || stockText(v)}</small>{v.shortDescription && <small className={stocked ? "" : "danger"}>{stockText(v)}</small>}</button>;
         })}</div>
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button onClick={() => setQuantity(quantity + 1)}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
@@ -388,9 +416,9 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   );
 }
 
-function Categories({ ctx, slug, navigate, store, addToCart }) {
+function Categories({ ctx, slug, navigate, store, addToCart, orderNow }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
-  if (category) return <section className="section page-top"><h1>{category.name}</h1><p>{category.description}</p><ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} /></section>;
+  if (category) return <section className="section page-top"><h1>{category.name}</h1><p>{category.description}</p><ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} /></section>;
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
@@ -432,7 +460,7 @@ function Cart({ cartLines, setCart, store }) {
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal, store.settings.currency)}`).join("\n")}\n\nTotal: ${money(total, store.settings.currency)}\n\nPlease let me know the payment details and next steps.`;
   return (
     <section className="section page-top cart-page"><h1>Cart</h1>
-      {!cartLines.length ? <Empty title="Your cart is empty" /> : cartLines.map((item) => <div className="cart-row" key={`${item.productId}-${item.variationId}`}><img src={item.product.image} alt={item.product.name} /><div><strong>{item.product.name}</strong><span>{item.variation.name}</span>{!item.purchasable && <small className="danger">Currently out of stock</small>}</div><b>{money(item.variation.price, store.settings.currency)}</b><input type="number" min="1" value={item.quantity} onChange={(e) => setCart((cart) => cart.map((c) => c.productId === item.productId && c.variationId === item.variationId ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} /><strong>{money(item.lineTotal, store.settings.currency)}</strong><button className="text-btn" onClick={() => setCart((cart) => cart.filter((c) => !(c.productId === item.productId && c.variationId === item.variationId)))}>Remove</button></div>)}
+      {!cartLines.length ? <Empty title="Your cart is empty" /> : cartLines.map((item) => <div className="cart-row" key={`${item.productId}-${item.variationId}`}><img src={item.product.image} alt={item.product.name} /><div><strong>{item.product.name}</strong><span>{item.variation.name}</span>{item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}{!item.purchasable && <small className="danger">Currently out of stock</small>}</div><b>{money(item.variation.price, store.settings.currency)}</b><input type="number" min="1" value={item.quantity} onChange={(e) => setCart((cart) => cart.map((c) => c.productId === item.productId && c.variationId === item.variationId ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} /><strong>{money(item.lineTotal, store.settings.currency)}</strong><button className="text-btn" onClick={() => setCart((cart) => cart.filter((c) => !(c.productId === item.productId && c.variationId === item.variationId)))}>Remove</button></div>)}
       {!!cartLines.length && <aside className="summary"><span>Subtotal</span><strong>{money(total, store.settings.currency)}</strong><span>Total</span><strong>{money(total, store.settings.currency)}</strong><a className={cartLines.every((i) => i.purchasable) ? "order-btn" : "order-btn disabled"} href={`https://wa.me/${store.settings.whatsappNumber}?text=${encodeURIComponent(message)}`} target="_blank">Order Now</a></aside>}
     </section>
   );
@@ -570,7 +598,7 @@ function VariationEditor({ variations, setVariations, productId, currency }) {
     <div className="variation-editor">
       <div className="variation-title">
         <h4>Plan Variations</h4>
-        <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>+ Add Variation</button>
+        <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", shortDescription: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>+ Add Variation</button>
       </div>
       {variations.map((v) => (
         <details className="variation-card" key={v.id} open={!v.name}>
@@ -584,6 +612,7 @@ function VariationEditor({ variations, setVariations, productId, currency }) {
             <label>Plan name<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /></label>
             <label>Selling price<input type="number" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="Current price" /></label>
             <label>Original price<input type="number" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="Old price" /></label>
+            <label>Short description<input value={v.shortDescription || ""} onChange={(e) => set(v.id, "shortDescription", e.target.value)} placeholder="4K • 30 days" /></label>
             <label>Current stock<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /></label>
             <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
             <button className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button>
