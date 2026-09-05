@@ -101,6 +101,7 @@ function App() {
   };
   const updateStore = async (next, successMessage = "✓ Changes saved successfully", errorMessage = "✕ Failed to save changes. Please try again.") => {
     const updated = typeof next === "function" ? next(store) : next;
+    setSaveStatus("Saving...");
     setStore(updated);
     localStorage.setItem(STORE_KEY, JSON.stringify(updated));
     try {
@@ -521,6 +522,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
       </div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
+      <AdminStatusMessage message={saveStatus} />
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
@@ -742,7 +744,7 @@ function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveS
 function AdminStatusMessage({ message }) {
   if (!message) return null;
   const normalized = message.toLowerCase();
-  const kind = normalized.includes("failed") || normalized.includes("required") ? "error" : "active";
+  const kind = normalized.includes("failed") || normalized.includes("required") ? "error" : normalized.includes("saving") ? "saving" : "active";
   return <div className={`admin-status ${kind}`} role="status">{message}</div>;
 }
 

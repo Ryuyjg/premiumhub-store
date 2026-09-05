@@ -650,21 +650,40 @@ footer button { background: transparent; color: var(--text-soft); padding: 0; bo
 .admin h1, .login h1 { font-size: 32px; line-height: 1.15; font-weight: 700; margin-bottom: 8px; }
 .admin-status {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: fit-content;
-  margin-top: 6px;
+  max-width: 100%;
+  margin: 0 0 16px;
   border: 1px solid rgba(168, 224, 99, .20);
-  border-radius: 8px;
+  border-radius: 999px;
   background: rgba(168, 224, 99, .10);
   color: var(--stock);
-  padding: 12px 14px;
-  font-weight: 700;
+  padding: 11px 15px;
+  font-weight: 800;
   font-size: 14px;
   line-height: 1.4;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .12);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+.admin-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 16%, transparent);
 }
 .admin-status.active {
   border-color: rgba(199, 243, 107, .24);
   background: rgba(199, 243, 107, .10);
   color: var(--accent);
+}
+.admin-status.saving {
+  border-color: rgba(109, 40, 217, .34);
+  background: rgba(109, 40, 217, .16);
+  color: var(--text-strong);
 }
 .admin-status.error {
   border-color: rgba(255, 138, 138, .18);
@@ -1925,7 +1944,7 @@ footer {
   order: 3;
   grid-column: 1 / -1;
   width: 100%;
-  margin: 0;
+  margin: 2px 0 0;
   justify-content: center;
   border-radius: 20px;
 }
