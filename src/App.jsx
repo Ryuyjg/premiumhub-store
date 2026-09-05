@@ -26,7 +26,14 @@ const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 3600))}:
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
-  return saved ? JSON.parse(saved) : seedData;
+  if (!saved) return seedData;
+  try {
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.products) || !Array.isArray(parsed.offers)) return seedData;
+    return { ...seedData, ...parsed, settings: { ...seedData.settings, ...parsed.settings } };
+  } catch {
+    return seedData;
+  }
 }
 
 function currentRoute() {
