@@ -13,6 +13,13 @@ const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !==
 const isAvailable = (item) => Boolean(item?.inStock) && (!hasCustomStock(item) || stockNumber(item) > 0);
 const stockText = (item) => isAvailable(item) ? (hasCustomStock(item) ? `${stockNumber(item)} in stock` : "In Stock") : "Stock Out";
 const isBlank = (value) => value === "" || value === null || value === undefined;
+const availableVariations = (product) => product?.variations?.filter((variation) => isAvailable(variation)) || [];
+const hasAvailableVariation = (product) => availableVariations(product).length > 0;
+const lowestVariation = (product) => {
+  const variations = product?.variations?.filter((variation) => !isBlank(variation.price)) || [];
+  return variations.sort((a, b) => Number(a.price) - Number(b.price))[0];
+};
+const productStockText = (product) => hasAvailableVariation(product) ? "In Stock" : "Stock Out";
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -105,7 +112,7 @@ function App() {
   const addToCart = (productId, variationId, quantity = 1) => {
     const product = ctx.productById[productId];
     const variation = product?.variations.find((item) => item.id === variationId);
-    if (!product?.active || !isAvailable(product) || !isAvailable(variation)) return false;
+    if (!product?.active || !isAvailable(variation)) return false;
     setCart((items) => {
       const found = items.find((item) => item.productId === productId && item.variationId === variationId);
       if (found) return items.map((item) => item === found ? { ...item, quantity: item.quantity + quantity } : item);
@@ -249,13 +256,13 @@ function Home({ store, ctx, addToCart, navigate }) {
           <span className="panel-kicker">Trending now</span>
           <div className="hero-product-stack">
             {heroPicks.map((product) => {
-              const first = product.variations.find((v) => isAvailable(v)) || product.variations[0];
+              const first = lowestVariation(product);
               return (
                 <button className="hero-product" key={product.id} onClick={() => navigate(`/products/${product.slug}`)}>
                   <img src={product.image} alt={`${product.name} logo`} />
                   <span>
                     <b>{product.name}</b>
-                    <small>{first ? `From ${money(first.price, store.settings.currency)}` : "Unavailable"}</small>
+                    <small>{first ? `From ${money(first.price, store.settings.currency)}` : `From ${money(0, store.settings.currency)}`}</small>
                   </span>
                 </button>
               );
@@ -297,8 +304,20 @@ function ProductGrid({ products, ctx, settings, addToCart, navigate }) {
 }
 
 function ProductCard({ product, category, settings, addToCart, navigate }) {
-  const first = product.variations.find((v) => isAvailable(v));
-  const disabled = !isAvailable(product) || !first;
+  const [choosing, setChoosing] = useState(false);
+  const available = availableVariations(product);
+  const first = available[0];
+  const priceFrom = lowestVariation(product);
+  const hasMultiple = product.variations.length > 1;
+  const disabled = !product.active || !first;
+  const chooseOrAdd = () => {
+    if (disabled) return;
+    if (hasMultiple) {
+      setChoosing((open) => !open);
+      return;
+    }
+    addToCart(product.id, first.id);
+  };
   return (
     <article className="product-card">
       <div className="image-wrap">
@@ -306,8 +325,22 @@ function ProductCard({ product, category, settings, addToCart, navigate }) {
         {disabled && <span className="stock-badge">Stock Out</span>}
       </div>
       <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
-      <div className="card-foot"><strong>{first ? `From ${money(first.price, settings.currency)}` : "Unavailable"}</strong><span className={disabled ? "stock out" : "stock"}>{disabled ? "Stock Out" : stockText(product)}</span></div>
-      <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={() => addToCart(product.id, first.id)}>Add to Cart</button></div>
+      <div className="card-foot"><strong>{priceFrom ? `From ${money(priceFrom.price, settings.currency)}` : `From ${money(0, settings.currency)}`}</strong><span className={disabled ? "stock out" : "stock"}>{productStockText(product)}</span></div>
+      {choosing && hasMultiple && (
+        <div className="card-plan-picker">
+          <span>Choose plan</span>
+          {product.variations.map((variation) => {
+            const stocked = isAvailable(variation);
+            return (
+              <div className={stocked ? "card-plan-row" : "card-plan-row out"} key={variation.id}>
+                <div><b>{variation.name}</b><small>{money(variation.price, settings.currency)}</small></div>
+                {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={chooseOrAdd}>{hasMultiple ? (choosing ? "Hide Plans" : "Add to Cart") : "Add to Cart"}</button></div>
     </article>
   );
 }
@@ -327,24 +360,27 @@ function Products({ store, ctx, slug, addToCart, navigate }) {
 }
 
 function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
-  const [variationId, setVariationId] = useState(product?.variations.find((v) => v.inStock)?.id || product?.variations[0]?.id);
+  const [variationId, setVariationId] = useState(product?.variations.find((v) => isAvailable(v))?.id || product?.variations[0]?.id);
   const [quantity, setQuantity] = useState(1);
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
   const selected = product.variations.find((v) => v.id === variationId);
-  const canBuy = product.active && isAvailable(product) && isAvailable(selected);
+  const canBuy = product.active && isAvailable(selected);
   const buy = () => { if (addToCart(product.id, selected.id, quantity)) navigate("/cart"); };
   return (
     <section className="detail page-top">
       <div className="detail-image image-wrap">
         <img src={product.image} alt={`${product.name} logo`} />
-        {!isAvailable(product) && <span className="stock-badge">Stock Out</span>}
+        {!hasAvailableVariation(product) && <span className="stock-badge">Stock Out</span>}
       </div>
       <div>
         <span className="pill">{ctx.categoryById[product.categoryId]?.name}</span><h1>{product.name}</h1><p>{product.description}</p>
-        <span className={isAvailable(product) ? "stock detail-stock" : "stock out detail-stock"}>{stockText(product)}</span>
+        <span className={hasAvailableVariation(product) ? "stock detail-stock" : "stock out detail-stock"}>{productStockText(product)}</span>
         <div className="feature-list">{product.features.map((f) => <span key={f}>{f}</span>)}</div>
         <h2>Choose a plan</h2>
-        <div className="plans">{product.variations.map((v) => <button className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={isAvailable(v) ? "" : "danger"}>{stockText(v)}</small></button>)}</div>
+        <div className="plans">{product.variations.map((v) => {
+          const stocked = isAvailable(v);
+          return <button disabled={!stocked} className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={stocked ? "" : "danger"}>{stockText(v)}</small></button>;
+        })}</div>
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button onClick={() => setQuantity(quantity + 1)}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
       </div>
@@ -367,7 +403,7 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate }) {
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
     const variation = product?.variations?.find((v) => v.id === offer.variationId);
-    const canBuy = Boolean(product?.active && variation && isAvailable(product) && isAvailable(variation));
+    const canBuy = Boolean(product?.active && variation && isAvailable(variation));
     const image = offer.image || product?.image || logo("DEAL", "#166534");
     return (
       <article className="offer-card" key={offer.id}>
@@ -405,7 +441,7 @@ function Cart({ cartLines, setCart, store }) {
 function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
-  const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !p.inStock).length };
+  const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !hasAvailableVariation(p)).length };
   return (
     <section className="admin page-top">
       <div className="admin-head">
@@ -443,10 +479,6 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
   const [draft, setDraft] = useState(blank);
   const save = () => {
-    if (isBlank(draft.stock)) {
-      setSaveStatus("Current stock is required.");
-      return;
-    }
     if (isBlank(draft.order)) {
       setSaveStatus("Display order is required.");
       return;
@@ -461,12 +493,12 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       setSaveStatus("Current stock is required.");
       return;
     }
-    const stock = Math.max(0, Number(draft.stock));
     const variations = draft.variations.map((variation) => {
       const variationStock = Math.max(0, Number(variation.stock));
       const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
       return { ...variation, price: Number(variation.price), originalPrice, stock: variationStock, inStock: variationStock > 0 };
     });
+    const stock = variations.reduce((sum, variation) => sum + stockNumber(variation), 0);
     updateStore(
       (s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, order: Number(draft.order), inStock: stock > 0, variations }] }),
       "✓ Product saved successfully",
@@ -513,16 +545,14 @@ function ProductForm({ draft, setDraft, categories, currency }) {
         <div className="form-section-head">
           <span>03</span>
           <div>
-            <h3>Visibility</h3>
-            <p>Catalog placement and product-level stock.</p>
+            <h3>Store Placement</h3>
+            <p>Catalog placement. Stock is calculated from variations.</p>
           </div>
         </div>
         <div className="form-section-grid compact">
-          <label>Current stock<input type="number" min="0" value={draft.stock ?? ""} onChange={(e) => { const stock = e.target.value; setDraft({ ...draft, stock, inStock: stock !== "" && Number(stock) > 0 }); }} /></label>
           <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => patch("order", e.target.value)} /></label>
           <div className="toggle-row">
             <label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label>
-            <label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label>
             <label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label>
           </div>
         </div>
