@@ -21,6 +21,8 @@ const lowestVariation = (product) => {
 };
 const productStockText = (product) => hasAvailableVariation(product) ? "In Stock" : "Stock Out";
 const whatsappGroupUrl = (settings) => settings.whatsappGroupLink?.trim();
+const twoDigits = (value) => String(value).padStart(2, "0");
+const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 3600))}:${twoDigits(Math.floor((seconds % 3600) / 60))}:${twoDigits(seconds % 60)}`;
 
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
@@ -45,6 +47,7 @@ function App() {
   const [dataStatus, setDataStatus] = useState("Loading catalog...");
   const [saveStatus, setSaveStatus] = useState("");
   const [orderProductId, setOrderProductId] = useState("");
+  const [timerTick, setTimerTick] = useState(() => Date.now());
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -79,6 +82,10 @@ function App() {
     const onPop = () => setRoute(currentRoute());
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    const timer = setInterval(() => setTimerTick(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const ctx = useMemo(() => buildContext(store), [store]);
@@ -140,7 +147,7 @@ function App() {
     }
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
@@ -253,7 +260,7 @@ function StickyCartButton({ count, total, settings, navigate }) {
   );
 }
 
-function Home({ store, ctx, addToCart, orderNow, navigate }) {
+function Home({ store, ctx, addToCart, orderNow, navigate, timerTick }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   const [openTrendingId, setOpenTrendingId] = useState("");
@@ -319,7 +326,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate }) {
         <CategoryGrid categories={ctx.categories.filter((c) => c.featured).slice(0, 4)} navigate={navigate} />
       </Section>
       <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-        <OfferGrid offers={ctx.activeOffers.slice(0, 3)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />
+        <OfferGrid offers={ctx.activeOffers.slice(0, 3)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} />
       </Section>
       <Section title="Featured Products" action="View all" onAction={() => navigate("/products")}>
         <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />
@@ -448,12 +455,14 @@ function Categories({ ctx, slug, navigate, store, addToCart, orderNow }) {
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
-function Offers({ ctx, store, addToCart, navigate }) {
-  return <section className="section page-top"><h1>Offers</h1><OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} /></section>;
+function Offers({ ctx, store, addToCart, navigate, timerTick }) {
+  return <section className="section page-top"><h1>Offers</h1><OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} /></section>;
 }
 
-function OfferGrid({ offers, ctx, settings, addToCart, navigate }) {
+function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
+  const duration = Math.max(0, Number(settings.offerTimerMinutes || 0)) * 60;
+  const secondsLeft = duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0;
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
     const variation = product?.variations?.find((v) => v.id === offer.variationId);
@@ -469,6 +478,7 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate }) {
           <span className="pill">Deal</span>
           <h3>{offer.title}</h3>
           <p>{offer.description}</p>
+          {!!duration && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft)}</b></span>}
           <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
           {(!product || !variation) && <small className="danger">Offer product is not configured</small>}
           <div className="card-actions">
@@ -695,6 +705,7 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
         <Field label="Tagline" value={draft.tagline} onChange={(tagline) => setDraft({ ...draft, tagline })} />
         <Field label="WhatsApp number" value={draft.whatsappNumber} onChange={(whatsappNumber) => setDraft({ ...draft, whatsappNumber })} />
         <Field label="WhatsApp group link" value={draft.whatsappGroupLink} onChange={(whatsappGroupLink) => setDraft({ ...draft, whatsappGroupLink })} />
+        <Field label="Offer timer minutes" value={draft.offerTimerMinutes} onChange={(offerTimerMinutes) => setDraft({ ...draft, offerTimerMinutes })} />
         <Field label="Currency" value={draft.currency} onChange={(currency) => setDraft({ ...draft, currency })} />
         <Field label="Contact email" value={draft.contact} onChange={(contact) => setDraft({ ...draft, contact })} />
         <Field label="Instagram link" value={draft.instagram} onChange={(instagram) => setDraft({ ...draft, instagram })} />

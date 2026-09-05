@@ -340,16 +340,29 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
   position: absolute;
   top: 10px;
   right: 10px;
-  border: 1px solid rgba(255, 138, 138, .18);
-  border-radius: 8px;
-  background: rgba(255, 138, 138, .08);
-  color: var(--danger);
-  padding: 6px 9px;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(255, 107, 107, .28);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 107, 107, .16), rgba(255, 107, 107, .09));
+  color: #FF6B6B;
+  padding: 7px 10px;
+  font-size: 10px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 900;
+  letter-spacing: .04em;
   text-transform: uppercase;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, .18);
+  backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: 0 14px 28px rgba(255, 107, 107, .10), 0 10px 20px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+.stock-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #FF6B6B;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, .16);
 }
 .category-card strong { font-size: 18px; line-height: 1.3; font-weight: 600; color: var(--text-strong); }
 .category-card span { color: var(--text-soft); font-size: 14px; line-height: 1.5; font-weight: 400; }
@@ -369,10 +382,12 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
 .stock.out, .danger { color: var(--danger); }
 .stock.out {
   border: 1px solid rgba(255, 107, 107, .25);
-  border-radius: 8px;
-  background: rgba(255, 107, 107, .12);
-  padding: 5px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 107, 107, .15), rgba(255, 107, 107, .08));
+  padding: 6px 10px;
   color: #FF6B6B;
+  font-weight: 900;
+  letter-spacing: .035em;
   text-transform: uppercase;
 }
 .card-plan-picker {
@@ -531,6 +546,33 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
 .offer-card { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 14px; }
 .offer-card img { aspect-ratio: 1 / 1; }
 .offer-card .pill { border-color: rgba(199, 243, 107, .26); background: rgba(199, 243, 107, .09); color: var(--accent); }
+.offer-timer {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 0 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(215, 255, 0, .22);
+  border-radius: 999px;
+  background: rgba(215, 255, 0, .09);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(18px) saturate(160%);
+}
+.offer-timer::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(215, 255, 0, .12);
+}
+.offer-timer b {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
 .offer-card strong { display: inline-block; color: var(--accent); font-size: 24px; line-height: 1.1; font-weight: 700; margin: 2px 0 12px; }
 s { color: var(--text-muted); font-size: 14px; font-weight: 400; margin-left: 5px; }
 .filters { display: grid; grid-template-columns: minmax(180px, 1fr) 220px; gap: 12px; margin-bottom: 18px; }
