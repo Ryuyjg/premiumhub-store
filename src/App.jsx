@@ -48,6 +48,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("");
   const [orderProductId, setOrderProductId] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
+  const isCatalogLoading = dataStatus === "Loading catalog...";
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -147,7 +148,7 @@ function App() {
     }
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
   return (
     <div>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
@@ -212,9 +213,10 @@ function hydrateCart(cart, ctx) {
 
 function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
-  const [menuOpen, setMenuOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const go = (path) => {
     navigate(path);
+    setMenuOpen(false);
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
   return (
@@ -231,6 +233,7 @@ function Header({ settings, cartCount, navigate, route }) {
         </>
       )}
     </header>
+    {!isAdminRoute && menuOpen && <button className="mobile-nav-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
     {!isAdminRoute && <nav className={menuOpen ? "mobile-nav open" : "mobile-nav"}>{nav}</nav>}
     </>
   );
@@ -260,7 +263,7 @@ function StickyCartButton({ count, total, settings, navigate }) {
   );
 }
 
-function Home({ store, ctx, addToCart, orderNow, navigate, timerTick }) {
+function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogLoading }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   const [openTrendingId, setOpenTrendingId] = useState("");
@@ -329,7 +332,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick }) {
         <OfferGrid offers={ctx.activeOffers.slice(0, 3)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} />
       </Section>
       <Section title="Featured Products" action="View all" onAction={() => navigate("/products")}>
-        <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />
+        {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
       </Section>
       <section className="contact-cta">
         <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
@@ -406,7 +409,7 @@ function OrderSheet({ product, settings, onClose, onOrder, navigate }) {
   );
 }
 
-function Products({ store, ctx, slug, addToCart, orderNow, navigate }) {
+function Products({ store, ctx, slug, addToCart, orderNow, navigate, isCatalogLoading }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
   if (slug) return <ProductDetails product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />;
@@ -415,7 +418,7 @@ function Products({ store, ctx, slug, addToCart, orderNow, navigate }) {
     <section className="section page-top">
       <div className="section-head"><h1>Products</h1></div>
       <div className="filters"><input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="all">All categories</option>{ctx.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />
+      {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
     </section>
   );
 }
@@ -449,14 +452,18 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   );
 }
 
-function Categories({ ctx, slug, navigate, store, addToCart, orderNow }) {
+function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalogLoading }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
-  if (category) return <section className="section page-top"><h1>{category.name}</h1><p>{category.description}</p><ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} /></section>;
+  if (category) return <section className="section page-top"><h1>{category.name}</h1><p>{category.description}</p>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}</section>;
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
-function Offers({ ctx, store, addToCart, navigate, timerTick }) {
-  return <section className="section page-top"><h1>Offers</h1><OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} /></section>;
+function Offers({ ctx, store, addToCart, navigate, timerTick, isCatalogLoading }) {
+  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} />}</section>;
+}
+
+function ProductSkeletonGrid() {
+  return <div className="product-grid skeleton-grid" aria-label="Loading products">{Array.from({ length: 4 }).map((_, index) => <article className="product-card skeleton-card" key={index}><span className="skeleton-img" /><span className="skeleton-line wide" /><span className="skeleton-line" /><span className="skeleton-line short" /><span className="skeleton-button" /></article>)}</div>;
 }
 
 function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
