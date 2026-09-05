@@ -403,6 +403,7 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
   background: rgba(5, 6, 10, .28);
 }
 .card-plan-row b,
+.card-plan-row span,
 .card-plan-row small {
   display: block;
 }
@@ -416,6 +417,12 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
   color: var(--accent);
   font-size: 12px;
   font-weight: 800;
+}
+.card-plan-row span {
+  margin-top: 3px;
+  color: var(--text-soft);
+  font-size: 11px;
+  line-height: 1.25;
 }
 .card-plan-row button {
   min-height: 34px;

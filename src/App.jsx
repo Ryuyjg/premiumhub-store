@@ -292,7 +292,11 @@ function Home({ store, ctx, addToCart, orderNow, navigate }) {
                         const stocked = isAvailable(variation);
                         return (
                           <div className={stocked ? "card-plan-row" : "card-plan-row out"} key={variation.id}>
-                            <div><b>{variation.name}</b><small>{money(variation.price, store.settings.currency)}</small></div>
+                            <div>
+                              <b>{variation.name}</b>
+                              {variation.shortDescription && <span>{variation.shortDescription}</span>}
+                              <small>{money(variation.price, store.settings.currency)}</small>
+                            </div>
                             {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
                           </div>
                         );
