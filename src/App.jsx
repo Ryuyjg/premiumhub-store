@@ -462,7 +462,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
 
 function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalogLoading }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
-  if (category) return <section className="section page-top"><h1>{category.name}</h1><p>{category.description}</p>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}</section>;
+  if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}</section>;
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
