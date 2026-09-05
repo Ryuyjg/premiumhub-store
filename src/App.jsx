@@ -678,7 +678,18 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     }
     updateStore((s) => ({ ...s, categories: [...s.categories.filter((c) => c.id !== draft.id), { ...draft, order: Number(draft.order), slug: draft.slug || slugify(draft.name) }] }), "✓ Category saved successfully", "✕ Failed to save category. Please try again.");
   };
-  const form = <div className="form-grid"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Image URL" /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="number" value={draft.order ?? ""} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label></div>;
+  const form = (
+    <div className="form-grid">
+      <label>Category name<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /></label>
+      <label className="image-field">Category image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
+      <label className="image-field">Upload category image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }))} /></label>
+      {draft.image && <div className="image-preview"><img src={draft.image} alt="Category preview" /></div>}
+      <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /></label>
+      <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /></label>
+      <label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label>
+      <label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label>
+    </div>
+  );
   return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} activeId={draft.id} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
 }
 
@@ -699,7 +710,22 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     };
     updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), offer] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
   };
-  const form = <div className="form-grid"><label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label><label>Product<select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label><label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label><label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label><label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label><label>Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Offer image URL" /></label><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label></div>;
+  const form = (
+    <div className="form-grid">
+      <label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label>
+      <label>Product<select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      <label>Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
+      <label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label>
+      <label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label>
+      <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /></label>
+      <label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label>
+      <label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label>
+      <label className="image-field">Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
+      <label className="image-field">Upload offer image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }))} /></label>
+      {draft.image && <div className="image-preview"><img src={draft.image} alt="Offer preview" /></div>}
+      <label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label>
+    </div>
+  );
   return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} activeId={draft.id} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
 }
 
