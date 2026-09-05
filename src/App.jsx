@@ -431,52 +431,93 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       "✕ Failed to save product. Please try again."
     );
   };
-  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
+  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} activeId={draft.id} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} currency={store.settings.currency} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
 }
 
-function ProductForm({ draft, setDraft, categories }) {
+function ProductForm({ draft, setDraft, categories, currency }) {
   const patch = (key, value) => setDraft({ ...draft, [key]: value });
   return (
     <div className="form-grid product-form">
-      <label>Product name<input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /></label>
-      <label>Category<select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
-      <label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Paste image URL or upload below" /></label>
-      <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label>
-      <div className="image-preview"><img src={draft.image} alt="Product preview" /></div>
-      <label>Current stock<input type="number" min="0" value={draft.stock ?? ""} onChange={(e) => { const stock = e.target.value; setDraft({ ...draft, stock, inStock: stock !== "" && Number(stock) > 0 }); }} /></label>
-      <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => patch("order", e.target.value)} /></label>
-      <label>Short description<textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description shown on product cards" /></label>
-      <label>Full description<textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description shown on product details" /></label>
-      <label>Features<textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /></label>
-      <div className="toggle-row">
-        <label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label>
-        <label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label>
-        <label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label>
-      </div>
-      <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} />
+      <section className="form-section">
+        <div className="form-section-head">
+          <span>01</span>
+          <div>
+            <h3>Basic Information</h3>
+            <p>Product identity, image and customer-facing copy.</p>
+          </div>
+        </div>
+        <div className="form-section-grid">
+          <label>Product name<input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /></label>
+          <label>Category<select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+          <label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Paste image URL or upload below" /></label>
+          <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label>
+          <div className="image-preview"><img src={draft.image} alt="Product preview" /></div>
+          <label>Short description<textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description shown on product cards" /></label>
+          <label>Full description<textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description shown on product details" /></label>
+          <label>Features<textarea value={Array.isArray(draft.features) ? draft.features.join("\n") : draft.features} onChange={(e) => patch("features", e.target.value)} placeholder="Features, one per line" /></label>
+        </div>
+      </section>
+      <section className="form-section">
+        <div className="form-section-head">
+          <span>02</span>
+          <div>
+            <h3>Pricing & Variations</h3>
+            <p>Plans, prices, and stock availability.</p>
+          </div>
+        </div>
+        <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} currency={currency} />
+      </section>
+      <section className="form-section">
+        <div className="form-section-head">
+          <span>03</span>
+          <div>
+            <h3>Visibility</h3>
+            <p>Catalog placement and product-level stock.</p>
+          </div>
+        </div>
+        <div className="form-section-grid compact">
+          <label>Current stock<input type="number" min="0" value={draft.stock ?? ""} onChange={(e) => { const stock = e.target.value; setDraft({ ...draft, stock, inStock: stock !== "" && Number(stock) > 0 }); }} /></label>
+          <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => patch("order", e.target.value)} /></label>
+          <div className="toggle-row">
+            <label><input type="checkbox" checked={draft.active} onChange={(e) => patch("active", e.target.checked)} /> Active</label>
+            <label><input type="checkbox" checked={isAvailable(draft)} onChange={(e) => { const stock = e.target.checked ? Math.max(1, stockNumber(draft) || 10) : 0; setDraft({ ...draft, stock, inStock: stock > 0 }); }} /> Product in stock</label>
+            <label><input type="checkbox" checked={draft.featured} onChange={(e) => patch("featured", e.target.checked)} /> Featured</label>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-function VariationEditor({ variations, setVariations, productId }) {
+function VariationEditor({ variations, setVariations, productId, currency }) {
   const set = (id, key, value) => setVariations(variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
   const setStock = (id, value) => {
     setVariations(variations.map((v) => v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v));
   };
   return (
     <div className="variation-editor">
-      <h3>Variations</h3>
+      <div className="variation-title">
+        <h4>Plan Variations</h4>
+        <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>+ Add Variation</button>
+      </div>
       {variations.map((v) => (
-        <div className="variation-row" key={v.id}>
-          <label>Plan name<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /></label>
-          <label>Selling price<input type="number" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="Current price" /></label>
-          <label>Original price<input type="number" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="Old price" /></label>
-          <label>Current stock<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /></label>
-          <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
-          <button className="text-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button>
-        </div>
+        <details className="variation-card" key={v.id} open={!v.name}>
+          <summary>
+            <span className="variation-name">{v.name || "New variation"}</span>
+            <span>Price: {isBlank(v.price) ? "Required" : `${currency}${v.price}`}</span>
+            <span>Original: {isBlank(v.originalPrice) ? "None" : `${currency}${v.originalPrice}`}</span>
+            <span className={isAvailable(v) ? "stock-dot" : "stock-dot out"}>{isAvailable(v) ? "In Stock" : "Stock Out"}</span>
+          </summary>
+          <div className="variation-row">
+            <label>Plan name<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /></label>
+            <label>Selling price<input type="number" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="Current price" /></label>
+            <label>Original price<input type="number" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="Old price" /></label>
+            <label>Current stock<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /></label>
+            <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
+            <button className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button>
+          </div>
+        </details>
       ))}
-      <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>Add Variation</button>
     </div>
   );
 }
@@ -492,7 +533,7 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     updateStore((s) => ({ ...s, categories: [...s.categories.filter((c) => c.id !== draft.id), { ...draft, order: Number(draft.order), slug: draft.slug || slugify(draft.name) }] }), "✓ Category saved successfully", "✕ Failed to save category. Please try again.");
   };
   const form = <div className="form-grid"><input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /><input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Image URL" /><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><input type="number" value={draft.order ?? ""} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label><label><input type="checkbox" checked={draft.featured} onChange={(e) => setDraft({ ...draft, featured: e.target.checked })} /> Featured</label></div>;
-  return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
+  return <Editor title="Category Management" onNew={() => setDraft({ ...blank, id: uid("category") })} list={store.categories} pick={setDraft} activeId={draft.id} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, categories: s.categories.filter((c) => c.id !== draft.id) }), "✓ Category deleted successfully", "✕ Failed to delete category. Please try again.")} saveStatus={saveStatus} />;
 }
 
 function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
@@ -513,7 +554,7 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), offer] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
   };
   const form = <div className="form-grid"><label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label><label>Product<select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label><label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label><label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label><textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /><label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label><label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label><label>Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Offer image URL" /></label><label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label></div>;
-  return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
+  return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} activeId={draft.id} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
 }
 
 function SettingsAdmin({ store, updateStore, saveStatus }) {
@@ -548,8 +589,8 @@ function Field({ label, value, onChange }) {
   return <label>{label}<input value={value || ""} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
-function Editor({ title, list, pick, draft, save, remove, onNew, saveStatus }) {
-  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div>{draft}<div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save</button><button className="ghost" onClick={remove}>Delete</button></div></div></div></section>;
+function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveStatus }) {
+  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button className={item.id === activeId ? "selected" : ""} key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div className="editor-workspace">{draft}<div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save</button><button className="ghost delete-action" onClick={remove}>Delete</button></div></div></div></section>;
 }
 
 function AdminStatusMessage({ message }) {
