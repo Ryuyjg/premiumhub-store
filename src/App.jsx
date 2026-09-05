@@ -212,10 +212,11 @@ function StickyCartButton({ count, total, settings, navigate }) {
 
 function Home({ store, ctx, addToCart, navigate }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
+  const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   return (
     <>
       <section className="hero">
-        <div>
+        <div className="hero-copy">
           <p className="eyebrow">Digital subscription store</p>
           <h1>{store.settings.tagline}</h1>
           <p>Browse trusted OTT, AI, music and editing plans. Pick a variation, review your cart, and place the order on WhatsApp in one tap.</p>
@@ -228,7 +229,25 @@ function Home({ store, ctx, addToCart, navigate }) {
           </div>
         </div>
         <div className="hero-panel">
-          <span>Live catalog</span><strong>{ctx.products.length} products</strong><small>{ctx.activeOffers.length} active offers</small>
+          <span className="panel-kicker">Trending now</span>
+          <div className="hero-product-stack">
+            {heroPicks.map((product) => {
+              const first = product.variations.find((v) => isAvailable(v)) || product.variations[0];
+              return (
+                <button className="hero-product" key={product.id} onClick={() => navigate(`/products/${product.slug}`)}>
+                  <img src={product.image} alt={`${product.name} logo`} />
+                  <span>
+                    <b>{product.name}</b>
+                    <small>{first ? `From ${money(first.price, store.settings.currency)}` : "Unavailable"}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hero-panel-foot">
+            <span><b>{ctx.products.length}</b> products</span>
+            <span><b>{ctx.activeOffers.length}</b> offers</span>
+          </div>
         </div>
       </section>
       <Section title="Featured Categories" action="View categories" onAction={() => navigate("/categories")}>
