@@ -241,15 +241,20 @@ function Header({ settings, cartCount, navigate, route }) {
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
   return (
-    <header className="site-header">
-      <button className="brand" onClick={() => go("/")}>
-        {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
-        <span>{settings.siteName}</span>
-      </button>
+    <>
+      <header className="site-header">
+        <button className="brand" onClick={() => go("/")}>
+          {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
+          <span>{settings.siteName}</span>
+        </button>
+        {!isAdminRoute && (
+          <nav className="site-nav desktop-only">{nav}</nav>
+        )}
+      </header>
       {!isAdminRoute && (
-        <nav className="desktop-nav">{nav}</nav>
+        <nav className="site-nav mobile-only">{nav}</nav>
       )}
-    </header>
+    </>
   );
 }
 

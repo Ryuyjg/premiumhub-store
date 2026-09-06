@@ -125,7 +125,10 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
-nav {
+.desktop-only { display: flex; }
+.mobile-only { display: none; }
+
+.site-nav {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -135,7 +138,7 @@ nav {
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(24px) saturate(160%);
 }
-nav button {
+.site-nav button {
   position: relative;
   background: rgba(255, 255, 255, 0.08);
   color: rgba(248, 250, 252, 0.72);
@@ -149,20 +152,20 @@ nav button {
   cursor: pointer;
   transition: all 0.18s ease;
 }
-nav button:hover {
+.site-nav button:hover {
   background: rgba(255, 255, 255, 0.14);
   color: #F8FAFC;
   border-color: rgba(255, 255, 255, 0.18);
   transform: none;
   box-shadow: none;
 }
-nav button.active {
+.site-nav button.active {
   background: rgba(109, 40, 217, 0.55);
   color: #F8FAFC;
   border: 1px solid rgba(167, 139, 250, 0.45);
   box-shadow: 0 0 0 4px rgba(109, 40, 217, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
-nav button.active::after { display: none !important; }
+.site-nav button.active::after { display: none !important; }
 .cart-link, .cart-link:hover, .cart-link.active {
   background: #D7FF00 !important;
   color: #05060A !important;
@@ -1441,6 +1444,8 @@ footer {
 
 @media (max-width: 820px) {
   body { padding-bottom: 84px; }
+  .desktop-only { display: none !important; }
+  .mobile-only { display: grid !important; }
   .site-header {
     top: 10px;
     display: flex;
@@ -1455,25 +1460,24 @@ footer {
     min-height: 40px;
     padding-right: 10px;
   }
-  .desktop-nav {
-    display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  .site-nav.mobile-only {
     position: fixed !important;
     left: 8px !important;
     right: 8px !important;
     bottom: calc(8px + env(safe-area-inset-bottom)) !important;
     top: auto !important;
-    z-index: 100 !important;
+    z-index: 99999 !important;
     width: auto !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
     gap: 3px !important;
     padding: 5px !important;
     border-radius: 999px !important;
-    background: rgba(11, 13, 18, 0.92) !important;
+    background: rgba(11, 13, 18, 0.94) !important;
     border: 1px solid rgba(255, 255, 255, 0.18) !important;
     backdrop-filter: blur(28px) saturate(180%) !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
   }
-  .desktop-nav button {
+  .site-nav.mobile-only button {
     min-height: 42px !important;
     padding: 6px 2px !important;
     font-size: 11px !important;
