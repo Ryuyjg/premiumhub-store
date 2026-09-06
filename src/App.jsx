@@ -1,5 +1,6 @@
 import { Component, useEffect, useMemo, useState } from "react";
 import { logo, seedData } from "./storeData";
+import { BRAND_LOGOS_DATA } from "./brandLogos";
 import "./App.css";
 
 const STORE_KEY = "premium-hub-store-v1";
@@ -241,162 +242,52 @@ function hydrateCart(cart, ctx) {
   }).filter(Boolean);
 }
 
-const BRAND_LOGOS = [
-  {
-    id: "netflix",
-    name: "Netflix",
-    bg: "rgba(229, 9, 20, 0.16)",
-    border: "rgba(229, 9, 20, 0.35)",
-    glow: "rgba(229, 9, 20, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M5.5 3.5v17l4.5-2.5V3.5h-4.5z" fill="#B81D24"/>
-        <path d="M14 3.5v14.5l4.5 2.5V3.5H14z" fill="#B81D24"/>
-        <path d="M5.5 3.5h4.5l9 17h-4.5l-9-17z" fill="#E50914"/>
-      </svg>
-    ),
-  },
-  {
-    id: "prime",
-    name: "Prime Video",
-    bg: "rgba(0, 168, 225, 0.16)",
-    border: "rgba(0, 168, 225, 0.35)",
-    glow: "rgba(0, 168, 225, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M22.5 14.5c-4.5 3-11.5 3.5-17.5.5C3.5 14.2 2 13 1 12c-.2-.2 0-.4.2-.3 6 3.5 13 3 17.5.5.3-.2.6.1.3.3z" fill="#00A8E1"/>
-        <path d="M21.2 12.3c-.3-.4-1.6-.2-2.2-.1-.2 0-.2-.2 0-.3.8-.6 2.1-.4 2.5.1.4.5.2 1.8-.4 2.5-.2.2-.3.1-.2-.1.3-.6.5-1.8.3-2.1z" fill="#00A8E1"/>
-        <path d="M12.5 5.5h-5c-.3 0-.5.2-.5.5v7c0 .3.2.5.5.5h5c2.5 0 4.5-1.8 4.5-4s-2-4-4.5-4zm0 6h-3.5V7.5h3.5c1.4 0 2.5 1 2.5 2s-1.1 2-2.5 2z" fill="#FFFFFF"/>
-      </svg>
-    ),
-  },
-  {
-    id: "spotify",
-    name: "Spotify",
-    bg: "rgba(29, 185, 84, 0.16)",
-    border: "rgba(29, 185, 84, 0.35)",
-    glow: "rgba(29, 185, 84, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="#1DB954">
-        <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.899 4.62-1.08 8.52-.66 11.64 1.26.36.18.48.66.301 1.08zm1.48-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141 C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.281 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.18-1.2-.18-1.38-.72-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.72 1.62.54.3.72.96.42 1.5-.3.54-.96.72-1.5.42z"/>
-      </svg>
-    ),
-  },
-  {
-    id: "hotstar",
-    name: "JioHotstar",
-    bg: "rgba(0, 102, 204, 0.16)",
-    border: "rgba(0, 102, 204, 0.35)",
-    glow: "rgba(0, 102, 204, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M12 2l2.4 7.2h7.6l-6.1 4.5 2.3 7.3L12 16.4l-6.2 4.6 2.3-7.3-6.1-4.5h7.6z" fill="#FFCC00"/>
-        <path d="M12 4.5l1.6 4.9h5.1l-4.1 3 1.6 4.9-4.2-3.1-4.2 3.1 1.6-4.9-4.1-3h5.1z" fill="#FF9900"/>
-      </svg>
-    ),
-  },
-  {
-    id: "chatgpt",
-    name: "ChatGPT",
-    bg: "rgba(16, 163, 127, 0.16)",
-    border: "rgba(16, 163, 127, 0.35)",
-    glow: "rgba(16, 163, 127, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M22.28 9.82a5.98 5.98 0 00-.52-4.91 6.05 6.05 0 00-6.51-2.9 6.07 6.07 0 00-10.27 2.17 5.98 5.98 0 00-4 2.9 6.05 6.05 0 00.74 7.1 5.98 5.98 0 00.51 4.91 6.05 6.05 0 006.51 2.9 5.98 5.98 0 004.28 1.91 6.06 6.06 0 005.77-4.21 5.99 5.99 0 004-2.9 6.06 6.06 0 00-.75-7.07zm-9.02 12.61a4.48 4.48 0 01-2.88-1.04l.14-.08 4.78-2.76a.79.79 0 00.39-.68v-6.74l2.02 1.17a.07.07 0 01.04.05v5.58a4.5 4.5 0 01-4.49 4.5zM3.6 18.31a4.47 4.47 0 01-.54-3.01l.14.08 4.78 2.76a.79.79 0 00.79 0l5.84-3.37v2.33a.08.08 0 01-.03.06L9.74 19.95a4.5 4.5 0 01-6.14-1.64zM2.34 8.66a4.47 4.47 0 012.34-1.97v5.69a.79.79 0 00.39.68l5.84 3.37-2.02 1.17a.08.08 0 01-.07 0L3.99 14.8a4.5 4.5 0 01-1.65-6.14zm16.1 3.85l-5.84-3.37 2.02-1.17a.08.08 0 01.07 0l4.83 2.79a4.5 4.5 0 01-.61 8.1v-5.67a.79.79 0 00-.47-.68zm2.11-3.83l-.14-.09-4.78-2.76a.79.79 0 00-.79 0L9.01 9.2V6.87a.08.08 0 01.03-.06l4.84-2.8a4.5 4.5 0 016.68 4.66zM10.74 1.58a4.48 4.48 0 012.88 1.04l-.14.08-4.78 2.76a.79.79 0 00-.39.68v6.74l-2.02-1.17a.07.07 0 01-.04-.05V6.07a4.5 4.5 0 014.49-4.49zm.27 7.43l2.85 1.65v3.29l-2.85 1.65-2.85-1.65v-3.29l2.85-1.65z" fill="#10A37F"/>
-      </svg>
-    ),
-  },
-  {
-    id: "youtube",
-    name: "YouTube",
-    bg: "rgba(255, 0, 0, 0.16)",
-    border: "rgba(255, 0, 0, 0.35)",
-    glow: "rgba(255, 0, 0, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.5A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 002.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8z" fill="#FF0000"/>
-        <path d="M9.5 15.6V8.4l6.3 3.6-6.3 3.6z" fill="#FFFFFF"/>
-      </svg>
-    ),
-  },
-  {
-    id: "sonyliv",
-    name: "SonyLIV",
-    bg: "rgba(88, 28, 135, 0.18)",
-    border: "rgba(245, 158, 11, 0.35)",
-    glow: "rgba(245, 158, 11, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M4.5 6h3.5v12H4.5z" fill="#F39C12"/>
-        <path d="M9.5 6h3.5v12H9.5z" fill="#E67E22"/>
-        <path d="M14.5 6h5v3.5h-5z" fill="#2ECC71"/>
-        <path d="M14.5 11h5v7h-5z" fill="#3498DB"/>
-      </svg>
-    ),
-  },
-  {
-    id: "zee5",
-    name: "ZEE5",
-    bg: "rgba(139, 38, 62, 0.18)",
-    border: "rgba(249, 115, 22, 0.35)",
-    glow: "rgba(249, 115, 22, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="12" r="10" fill="#821E5A"/>
-        <path d="M7 8h10l-6.5 5.2H17V16H7l6.5-5.2H7V8z" fill="#FFFFFF"/>
-      </svg>
-    ),
-  },
-  {
-    id: "appletv",
-    name: "Apple TV",
-    bg: "rgba(255, 255, 255, 0.12)",
-    border: "rgba(255, 255, 255, 0.25)",
-    glow: "rgba(255, 255, 255, 0.3)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="#FFFFFF">
-        <path d="M18.7 19.5c-.8 1.2-1.7 2.4-3 2.5-1.3 0-1.8-.8-3.3-.8-1.5 0-2 .8-3.3.8-1.3 0-2.3-1.3-3.1-2.5C4.2 17 2.9 12.5 4.7 9.4c.9-1.5 2.4-2.5 4.1-2.5 1.3 0 2.5.9 3.3.9.8 0 2.3-1.1 3.8-.9.6 0 2.5.3 3.6 2-.1.1-2.2 1.3-2.1 3.8.1 3 2.6 4 2.7 4-.1.1-.4 1.4-1.4 2.8zM16 6c.6-.8 1.1-1.8 1-2.9-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 .1 2.1-.6 2.7-1.4z"/>
-      </svg>
-    ),
-  },
-  {
-    id: "canva",
-    name: "Canva",
-    bg: "rgba(0, 196, 204, 0.16)",
-    border: "rgba(0, 196, 204, 0.35)",
-    glow: "rgba(0, 196, 204, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="#00C4CC">
-        <path d="M12 0C5.37 0 0 5.37 0 12s5.37 12 12 12 12-5.37 12-12S18.63 0 12 0zm4.27 15.65c-1.38 1.58-3.48 2.37-5.58 2.37-3.66 0-6.19-2.48-6.19-6.02 0-3.9 3.03-6.52 7.08-6.52 2.05 0 3.73.68 4.77 1.92.23.27.18.68-.11.89l-.92.68c-.25.18-.6.14-.8-.1-.7-.82-1.78-1.28-2.94-1.28-2.58 0-4.52 1.72-4.52 4.36 0 2.39 1.62 3.96 4.03 3.96 1.42 0 2.76-.56 3.67-1.54.22-.24.6-.26.84-.04l.79.66c.27.22.29.62.08.88z"/>
-      </svg>
-    ),
-  },
-  {
-    id: "claude",
-    name: "Claude",
-    bg: "rgba(217, 119, 6, 0.16)",
-    border: "rgba(217, 119, 6, 0.35)",
-    glow: "rgba(217, 119, 6, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="#D97706">
-        <path d="M12 2a1 1 0 011 1v6.2l4.38-4.38a1 1 0 111.42 1.42L14.4 10.6H21a1 1 0 110 2h-6.6l4.4 4.38a1 1 0 11-1.42 1.42L13 14.02V20.5a1 1 0 11-2 0v-6.48l-4.38 4.38a1 1 0 01-1.42-1.42L9.6 12.6H3a1 1 0 110-2h6.6L5.2 6.22a1 1 0 011.42-1.42L11 9.2V3a1 1 0 011-1z"/>
-      </svg>
-    ),
-  },
-  {
-    id: "disney",
-    name: "Disney+",
-    bg: "rgba(17, 60, 207, 0.16)",
-    border: "rgba(17, 60, 207, 0.35)",
-    glow: "rgba(17, 60, 207, 0.35)",
-    svg: (
-      <svg viewBox="0 0 24 24" fill="none">
-        <path d="M11.5 3C6.3 3 2 7.3 2 12.5S6.3 22 11.5 22 21 17.7 21 12.5 16.7 3 11.5 3zm4.5 11h-3v3h-2v-3h-3v-2h3v-3h2v3h3v2z" fill="#113CCF"/>
-      </svg>
-    ),
-  },
-];
+function FloatingLogos() {
+  const logos = useMemo(() => {
+    const items = BRAND_LOGOS_DATA.map((b) => {
+      const c = b.color;
+      const alpha = (a) => {
+        const hex = c.replace("#", "");
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const bl = parseInt(hex.substring(4, 6), 16);
+        return `rgba(${r},${g},${bl},${a})`;
+      };
+      return {
+        id: b.id,
+        name: b.name,
+        bg: alpha(0.14),
+        border: alpha(0.32),
+        glow: alpha(0.3),
+        icon: typeof b.path === "string" && b.path.startsWith("<svg") ? (
+          <span className="custom-svg-wrapper" dangerouslySetInnerHTML={{ __html: b.path }} />
+        ) : b.path ? (
+          <svg viewBox="0 0 24 24"><path d={b.path} fill={b.color} /></svg>
+        ) : (
+          <svg viewBox="0 0 60 24"><text x="30" y="17" fill={b.color} fontSize="13" fontWeight="900" textAnchor="middle" fontFamily="Inter,system-ui,sans-serif">{b.name}</text></svg>
+        ),
+      };
+    });
+    return [...items, ...items];
+  }, []);
+
+  return (
+    <div className="header-floating-area" aria-hidden="true">
+      <div className="floating-logos-track">
+        {logos.map((item, index) => (
+          <div
+            key={`${item.id}-${index}`}
+            className={`floating-logo-pill logo-pos-${(index % 5) + 1}`}
+            style={{ "--bg-color": item.bg, "--border-color": item.border, "--glow-color": item.glow }}
+          >
+            <span className="logo-icon">{item.icon}</span>
+            <span className="logo-name">{item.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
@@ -404,7 +295,6 @@ function Header({ settings, cartCount, navigate, route }) {
     navigate(path);
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
-  const floatingLogos = useMemo(() => [...BRAND_LOGOS, ...BRAND_LOGOS], []);
 
   return (
     <>
@@ -414,26 +304,7 @@ function Header({ settings, cartCount, navigate, route }) {
             {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
             <span>{settings.siteName}</span>
           </button>
-          {!isAdminRoute && (
-            <div className="header-floating-area" aria-hidden="true">
-              <div className="floating-logos-track">
-                {floatingLogos.map((item, index) => (
-                  <div
-                    key={`${item.id}-${index}`}
-                    className={`floating-logo-pill logo-pos-${(index % 5) + 1}`}
-                    style={{
-                      "--bg-color": item.bg,
-                      "--border-color": item.border,
-                      "--glow-color": item.glow,
-                    }}
-                  >
-                    <span className="logo-icon">{item.svg}</span>
-                    <span className="logo-name">{item.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {!isAdminRoute && <FloatingLogos />}
         </div>
         {!isAdminRoute && (
           <nav className="site-nav desktop-only">{nav}</nav>
