@@ -237,36 +237,27 @@ function hydrateCart(cart, ctx) {
 
 function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
-  const [menuOpen, setMenuOpen] = useState(false);
   const go = (path) => {
     navigate(path);
-    setMenuOpen(false);
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
   return (
-    <>
     <header className="site-header">
       <button className="brand" onClick={() => go("/")}>
         {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
         <span>{settings.siteName}</span>
       </button>
       {!isAdminRoute && (
-        <>
-        <button className="menu-toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-label="Toggle navigation"><span></span><span></span></button>
         <nav className="desktop-nav">{nav}</nav>
-        </>
       )}
     </header>
-    {!isAdminRoute && menuOpen && <button className="mobile-nav-backdrop" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
-    {!isAdminRoute && <nav className={menuOpen ? "mobile-nav open" : "mobile-nav"}>{nav}</nav>}
-    </>
   );
 }
 
 function NavButtons({ cartCount, route, go }) {
   return (
     <>
-      {["Home", "Categories", "Offers", "Products"].map((label) => {
+      {["Home", "Offers", "Products", "Categories"].map((label) => {
         const path = label === "Home" ? "/" : `/${label.toLowerCase()}`;
         const active = path === "/" ? route === "/" : route.startsWith(path);
         return <button className={active ? "active" : ""} key={label} onClick={() => go(path)}>{label}</button>;

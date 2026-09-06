@@ -1442,75 +1442,49 @@ footer {
 }
 
 @media (max-width: 820px) {
-  body { padding-bottom: 88px; }
+  body { padding-bottom: 84px; }
   .site-header {
     top: 10px;
-    display: grid;
-    grid-template-columns: 1fr auto;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     width: calc(100% - 20px);
-    padding: 8px;
-    border-radius: 28px;
+    padding: 8px 12px;
+    border-radius: 999px;
   }
   .brand {
     width: auto;
-    min-height: 48px;
+    min-height: 40px;
     padding-right: 10px;
   }
-  .menu-toggle {
-    display: inline-grid;
-    place-items: center;
-    gap: 4px;
-    width: 48px;
-    height: 48px;
-    min-height: 48px;
-    padding: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, .10);
-    border: 1px solid rgba(255, 255, 255, .18);
-    backdrop-filter: blur(24px) saturate(160%);
-  }
-  .menu-toggle span {
-    display: block;
-    width: 18px;
-    height: 2px;
-    border-radius: 999px;
-    background: #F8FAFC;
-  }
   .desktop-nav {
-    display: none;
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    position: fixed !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    top: auto !important;
+    z-index: 100 !important;
+    width: auto !important;
+    gap: 3px !important;
+    padding: 5px !important;
+    border-radius: 999px !important;
+    background: rgba(11, 13, 18, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    backdrop-filter: blur(28px) saturate(180%) !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
   }
-  .mobile-nav {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    z-index: 11;
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-    width: auto;
-    padding: 7px;
-    border-radius: 30px;
-    background: rgba(255, 255, 255, .10);
-    border: 1px solid rgba(255, 255, 255, .18);
-    backdrop-filter: blur(30px) saturate(180%);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, .32), inset 0 1px 0 rgba(255, 255, 255, .18);
-    transition: transform .22s ease-out, opacity .22s ease-out, box-shadow .22s ease-out;
-  }
-  .mobile-nav:not(.open) {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(calc(100% + 28px)) !important;
-  }
-  .mobile-nav.open {
-    box-shadow: 0 26px 78px rgba(109, 40, 217, .26), inset 0 1px 0 rgba(255, 255, 255, .22);
-  }
-  .mobile-nav button {
-    min-height: 48px;
-    padding: 8px 6px;
-    border-radius: 22px;
-    font-size: 12px;
+  .desktop-nav button {
+    min-height: 42px !important;
+    padding: 6px 2px !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    border-radius: 999px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
   .cart-link { grid-column: auto; }
   main.with-sticky-cart { padding-bottom: 172px; }
@@ -2366,58 +2340,8 @@ footer {
 }
 
 @media (max-width: 820px) {
-  .menu-toggle {
-    display: inline-grid;
-  }
-
-  .mobile-nav-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 10;
-    border: 0;
-    background: rgba(5, 6, 10, .38);
-    backdrop-filter: blur(10px);
-  }
-
-  .mobile-nav,
-  .mobile-nav:not(.open) {
-    left: auto !important;
-    right: 12px !important;
-    bottom: auto;
-    top: 82px;
-    width: min(272px, calc(100vw - 24px));
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 28px;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-10px) scale(.98) !important;
-  }
-
-  .mobile-nav.open {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0) scale(1) !important;
-  }
-
-  .mobile-nav button {
-    justify-content: flex-start;
-    min-height: 50px;
-    padding: 12px 16px;
-    text-align: left;
-    font-size: 14px;
-    border-radius: 20px;
-  }
-
-  .mobile-nav .cart-link {
-    justify-content: space-between;
-  }
-
   body {
-    padding-bottom: 22px;
+    padding-bottom: 76px;
   }
 
   main.with-sticky-cart {
