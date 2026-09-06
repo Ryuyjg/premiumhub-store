@@ -214,7 +214,14 @@ class RouteErrorBoundary extends Component {
 function buildContext(store) {
   const now = new Date();
   const categories = [...store.categories].filter((c) => c.active).sort((a, b) => a.order - b.order);
-  const products = [...store.products].filter((p) => p.active && categories.some((c) => c.id === p.categoryId)).sort((a, b) => a.order - b.order);
+  const products = [...store.products]
+    .filter((p) => p.active && categories.some((c) => c.id === p.categoryId))
+    .sort((a, b) => {
+      const aInStock = hasAvailableVariation(a);
+      const bInStock = hasAvailableVariation(b);
+      if (aInStock !== bInStock) return aInStock ? -1 : 1;
+      return (a.order || 0) - (b.order || 0);
+    });
   const activeOffers = store.offers.filter((offer) => offer.active && (!offer.startDate || new Date(offer.startDate) <= now) && (!offer.endDate || new Date(offer.endDate) >= now));
   return {
     categories, products, activeOffers,
