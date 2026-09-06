@@ -156,7 +156,11 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   gap: 16px;
   width: max-content;
   will-change: transform;
-  animation: headerLogoMarquee 120s linear infinite;
+  animation: headerLogoMarquee 360s linear infinite;
+}
+
+.header-floating-area:hover .floating-logos-track {
+  animation-play-state: paused;
 }
 
 .floating-logo-pill {
