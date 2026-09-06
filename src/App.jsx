@@ -186,7 +186,6 @@ function App() {
         </RouteErrorBoundary>
       </main>
       {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
-      {showStickyCart && <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} navigate={navigate} />}
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
   );
@@ -257,7 +256,7 @@ function Header({ settings, cartCount, navigate, route }) {
 function NavButtons({ cartCount, route, go }) {
   return (
     <>
-      {["Home", "Offers", "Products", "Categories"].map((label) => {
+      {["Home", "Categories", "Offers", "Products"].map((label) => {
         const path = label === "Home" ? "/" : `/${label.toLowerCase()}`;
         const active = path === "/" ? route === "/" : route.startsWith(path);
         return <button className={active ? "active" : ""} key={label} onClick={() => go(path)}>{label}</button>;
