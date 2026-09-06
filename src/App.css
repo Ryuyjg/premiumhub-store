@@ -1605,7 +1605,7 @@ footer {
   }
   .floating-logos-track {
     gap: 12px;
-    animation-duration: 32s;
+    animation-duration: 300s;
   }
   .floating-logo-pill {
     padding: 3px 8px 3px 4px;
