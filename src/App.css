@@ -89,6 +89,15 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   border-radius: 999px;
   backdrop-filter: blur(28px) saturate(180%);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+.header-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
 }
 .brand {
   display: inline-flex;
@@ -103,6 +112,7 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   font-size: 18px;
   font-weight: 800;
   cursor: pointer;
+  flex-shrink: 0;
 }
 .brand:hover { background: transparent; box-shadow: none; color: var(--text-strong); }
 .brand-mark {
@@ -125,6 +135,104 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
+
+/* Floating Brand Logos Track inside Header */
+.header-floating-area {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
+}
+
+.floating-logos-track {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: max-content;
+  will-change: transform;
+  animation: headerLogoMarquee 42s linear infinite;
+}
+
+.floating-logo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px 4px 5px;
+  border-radius: 999px;
+  background: var(--bg-color, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.16));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 10px var(--glow-color, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  white-space: nowrap;
+  flex-shrink: 0;
+  animation: headerFloatBob 4s ease-in-out infinite alternate;
+}
+
+.floating-logo-pill .logo-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.floating-logo-pill .logo-icon svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.floating-logo-pill .logo-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(248, 250, 252, 0.88);
+  letter-spacing: 0.2px;
+}
+
+.floating-logo-pill.logo-pos-1 {
+  transform: translateY(-3px) scale(0.95);
+  animation-delay: 0s;
+  animation-duration: 4.2s;
+}
+.floating-logo-pill.logo-pos-2 {
+  transform: translateY(3px) scale(1.02);
+  animation-delay: -1.2s;
+  animation-duration: 3.8s;
+}
+.floating-logo-pill.logo-pos-3 {
+  transform: translateY(-1px) scale(0.92);
+  animation-delay: -2.4s;
+  animation-duration: 4.6s;
+}
+.floating-logo-pill.logo-pos-4 {
+  transform: translateY(4px) scale(0.98);
+  animation-delay: -3.5s;
+  animation-duration: 3.5s;
+}
+.floating-logo-pill.logo-pos-5 {
+  transform: translateY(-4px) scale(1);
+  animation-delay: -0.8s;
+  animation-duration: 4.0s;
+}
+
+@keyframes headerLogoMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes headerFloatBob {
+  0% { transform: translateY(-3px) rotate(-0.5deg); }
+  50% { transform: translateY(3px) rotate(0.8deg); }
+  100% { transform: translateY(-3px) rotate(-0.5deg); }
+}
+
 .desktop-only { display: flex; }
 .mobile-only { display: none; }
 
@@ -1483,10 +1591,34 @@ footer {
     padding: 8px 12px;
     border-radius: 999px;
   }
+  .header-brand-group {
+    gap: 8px;
+  }
+  .header-floating-area {
+    height: 32px;
+    mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 1) 15%, rgba(0, 0, 0, 1) 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0, 0, 0, 1) 15%, rgba(0, 0, 0, 1) 85%, transparent 100%);
+  }
+  .floating-logos-track {
+    gap: 12px;
+    animation-duration: 32s;
+  }
+  .floating-logo-pill {
+    padding: 3px 8px 3px 4px;
+    gap: 5px;
+  }
+  .floating-logo-pill .logo-icon {
+    width: 15px;
+    height: 15px;
+  }
+  .floating-logo-pill .logo-name {
+    font-size: 10px;
+  }
   .brand {
     width: auto;
     min-height: 40px;
-    padding-right: 10px;
+    padding-right: 6px;
+    font-size: 16px;
   }
   .site-nav.mobile-only {
     position: fixed !important;

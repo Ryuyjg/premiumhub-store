@@ -241,19 +241,207 @@ function hydrateCart(cart, ctx) {
   }).filter(Boolean);
 }
 
+const BRAND_LOGOS = [
+  {
+    id: "netflix",
+    name: "Netflix",
+    bg: "rgba(229, 9, 20, 0.16)",
+    border: "rgba(229, 9, 20, 0.35)",
+    glow: "rgba(229, 9, 20, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#141414" />
+        <path d="M7 4V20M17 4V20M7 4L17 20" stroke="#E50914" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "prime",
+    name: "Prime Video",
+    bg: "rgba(0, 168, 225, 0.16)",
+    border: "rgba(0, 168, 225, 0.35)",
+    glow: "rgba(0, 168, 225, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#00A8E1" />
+        <path d="M5 14C8.5 16.5 15.5 16.5 19 14" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+        <path d="M16.5 13L19 14L17.5 16.5" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "spotify",
+    name: "Spotify",
+    bg: "rgba(29, 185, 84, 0.16)",
+    border: "rgba(29, 185, 84, 0.35)",
+    glow: "rgba(29, 185, 84, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" fill="#1DB954" />
+        <path d="M6.5 9.5C10 8.5 14.5 9 17.5 10.5M7 12.3C10.2 11.4 13.8 11.8 16.2 13M7.8 15.2C10.2 14.5 13 14.8 15 15.8" stroke="#05060A" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "hotstar",
+    name: "JioHotstar",
+    bg: "rgba(0, 102, 204, 0.16)",
+    border: "rgba(0, 102, 204, 0.35)",
+    glow: "rgba(0, 102, 204, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#021533" />
+        <path d="M12 4L13.8 8.8H18.8L14.9 11.7L16.4 16.5L12 13.6L7.6 16.5L9.1 11.7L5.2 8.8H10.2L12 4Z" fill="#FFCC00" />
+      </svg>
+    ),
+  },
+  {
+    id: "chatgpt",
+    name: "ChatGPT",
+    bg: "rgba(16, 163, 127, 0.16)",
+    border: "rgba(16, 163, 127, 0.35)",
+    glow: "rgba(16, 163, 127, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#10A37F" />
+        <path d="M12 5.5A6.5 6.5 0 1018.5 12 6.5 6.5 0 0012 5.5Z" stroke="#FFFFFF" strokeWidth="1.8" />
+        <circle cx="12" cy="12" r="2.5" fill="#FFFFFF" />
+      </svg>
+    ),
+  },
+  {
+    id: "youtube",
+    name: "YouTube",
+    bg: "rgba(255, 0, 0, 0.16)",
+    border: "rgba(255, 0, 0, 0.35)",
+    glow: "rgba(255, 0, 0, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="5" width="20" height="14" rx="4.5" fill="#FF0000" />
+        <path d="M10 9L15.5 12L10 15V9Z" fill="#FFFFFF" />
+      </svg>
+    ),
+  },
+  {
+    id: "sonyliv",
+    name: "SonyLIV",
+    bg: "rgba(88, 28, 135, 0.18)",
+    border: "rgba(245, 158, 11, 0.35)",
+    glow: "rgba(245, 158, 11, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#3B0764" />
+        <text x="12" y="15.5" fill="#F59E0B" fontSize="9" fontWeight="900" textAnchor="middle" fontFamily="Inter, sans-serif">LIV</text>
+      </svg>
+    ),
+  },
+  {
+    id: "zee5",
+    name: "ZEE5",
+    bg: "rgba(139, 38, 62, 0.18)",
+    border: "rgba(249, 115, 22, 0.35)",
+    glow: "rgba(249, 115, 22, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#8B263E" />
+        <text x="12" y="15.5" fill="#FFFFFF" fontSize="9.5" fontWeight="900" textAnchor="middle" fontFamily="Inter, sans-serif">Z5</text>
+      </svg>
+    ),
+  },
+  {
+    id: "appletv",
+    name: "Apple TV",
+    bg: "rgba(255, 255, 255, 0.12)",
+    border: "rgba(255, 255, 255, 0.25)",
+    glow: "rgba(255, 255, 255, 0.3)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#1C1C1E" />
+        <path d="M10.5 7.2C10.8 6.7 11.4 6.3 12 6.3C12.1 7 11.8 7.6 11.4 8C11 8.4 10.4 8.7 9.8 8.6C9.7 7.9 10.1 7.3 10.5 7.2Z" fill="#FFFFFF" />
+        <path d="M12.7 8.8C11.9 8.8 11.5 9.2 10.9 9.2C10.3 9.2 9.8 8.8 9.1 8.8C8 8.8 7 9.8 7 11.6C7 13.4 8.1 15.6 9.1 15.6C9.7 15.6 10 15.2 10.8 15.2C11.5 15.2 11.8 15.6 12.5 15.6C13.5 15.6 14.4 13.6 14.4 13.5C14.3 13.4 13.4 13 13.4 11.7C13.4 10.5 14.3 10 14.4 9.9C13.6 8.9 12.7 8.8 12.7 8.8Z" fill="#FFFFFF" />
+        <text x="18.5" y="14" fill="#FFFFFF" fontSize="7" fontWeight="800" textAnchor="middle" fontFamily="Inter, sans-serif">tv</text>
+      </svg>
+    ),
+  },
+  {
+    id: "canva",
+    name: "Canva",
+    bg: "rgba(0, 196, 204, 0.16)",
+    border: "rgba(0, 196, 204, 0.35)",
+    glow: "rgba(0, 196, 204, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#00C4CC" />
+        <path d="M14.5 9.5C13.8 8.2 10.2 8.2 9.2 10.5C8.2 12.8 9.2 15.5 11.2 15.5C13 15.5 14.2 14.2 14.8 13.2" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: "claude",
+    name: "Claude",
+    bg: "rgba(217, 119, 6, 0.16)",
+    border: "rgba(217, 119, 6, 0.35)",
+    glow: "rgba(217, 119, 6, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#D97706" />
+        <path d="M12 5L13.5 10.5L19 12L13.5 13.5L12 19L10.5 13.5L5 12L10.5 10.5L12 5Z" fill="#FFFFFF" />
+      </svg>
+    ),
+  },
+  {
+    id: "disney",
+    name: "Disney+",
+    bg: "rgba(17, 60, 207, 0.16)",
+    border: "rgba(17, 60, 207, 0.35)",
+    glow: "rgba(17, 60, 207, 0.35)",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none">
+        <rect width="24" height="24" rx="6" fill="#113CCF" />
+        <path d="M6 14C10 9 14 9 18 14" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+        <text x="18.5" y="12" fill="#FFFFFF" fontSize="8" fontWeight="900" textAnchor="middle" fontFamily="Inter, sans-serif">+</text>
+      </svg>
+    ),
+  },
+];
+
 function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
   const go = (path) => {
     navigate(path);
   };
   const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
+  const floatingLogos = useMemo(() => [...BRAND_LOGOS, ...BRAND_LOGOS], []);
+
   return (
     <>
       <header className="site-header">
-        <button className="brand" onClick={() => go("/")}>
-          {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
-          <span>{settings.siteName}</span>
-        </button>
+        <div className="header-brand-group">
+          <button className="brand" onClick={() => go("/")}>
+            {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
+            <span>{settings.siteName}</span>
+          </button>
+          {!isAdminRoute && (
+            <div className="header-floating-area" aria-hidden="true">
+              <div className="floating-logos-track">
+                {floatingLogos.map((item, index) => (
+                  <div
+                    key={`${item.id}-${index}`}
+                    className={`floating-logo-pill logo-pos-${(index % 5) + 1}`}
+                    style={{
+                      "--bg-color": item.bg,
+                      "--border-color": item.border,
+                      "--glow-color": item.glow,
+                    }}
+                  >
+                    <span className="logo-icon">{item.svg}</span>
+                    <span className="logo-name">{item.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
         {!isAdminRoute && (
           <nav className="site-nav desktop-only">{nav}</nav>
         )}
