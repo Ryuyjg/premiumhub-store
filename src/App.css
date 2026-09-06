@@ -1026,8 +1026,6 @@ label input[type="checkbox"] { width: 18px; height: 18px; margin-right: 8px; acc
   .offer-grid { grid-template-columns: 1fr; }
   .offer-card { grid-template-columns: 88px 1fr; }
   .filters input, .filters select { min-height: 46px; }
-  .detail .actions { position: sticky; bottom: 0; z-index: 4; margin: 0 -16px; padding: 10px 16px; background: rgba(11, 13, 15, .94); border-top: 1px solid var(--border); backdrop-filter: blur(14px); }
-  main.with-sticky-cart .detail .actions { bottom: 98px; }
   .cart-page { padding-bottom: 24px; }
   .cart-row {
     grid-template-columns: 64px minmax(0, 1fr);
@@ -1543,21 +1541,6 @@ footer {
   .product-card h3 { font-size: 15px; }
   .product-card p { font-size: 12px; }
   .card-actions button { font-size: 12px; }
-  .detail {
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-  }
-  .detail .actions {
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    border-radius: 26px 26px 0 0;
-    background: rgba(255, 255, 255, .10);
-    border-top: 1px solid rgba(255, 255, 255, .18);
-    backdrop-filter: blur(30px) saturate(180%);
-  }
-  main.with-sticky-cart .detail .actions {
-    bottom: calc(150px + env(safe-area-inset-bottom));
-  }
 }
 
 @media (max-width: 420px) {
