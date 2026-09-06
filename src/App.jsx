@@ -63,7 +63,7 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("");
   const [orderProductId, setOrderProductId] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
-  const isCatalogLoading = dataStatus === "Loading catalog...";
+  const isCatalogLoading = dataStatus === "Loading catalog..." && (!store?.products?.length || !store?.offers?.length);
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
@@ -494,7 +494,12 @@ function ProductSkeletonGrid() {
 function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
   const duration = Math.max(0, Number(settings.offerTimerMinutes || 0)) * 60;
-  const secondsLeft = (offer) => offer.endDate ? Math.max(0, Math.ceil((new Date(`${offer.endDate}T23:59:59`).getTime() - timerTick) / 1000)) : (duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0);
+  const secondsLeft = (offer) => {
+    if (!offer.endDate) return duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0;
+    const targetStr = offer.endDate.includes("T") ? offer.endDate : `${offer.endDate}T23:59:59`;
+    const time = new Date(targetStr).getTime();
+    return Number.isNaN(time) ? 0 : Math.max(0, Math.ceil((time - timerTick) / 1000));
+  };
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
     const variation = product?.variations?.find((v) => v.id === offer.variationId);
