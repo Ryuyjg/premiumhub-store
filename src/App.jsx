@@ -10,6 +10,7 @@ const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-"
 const money = (value, currency) => `${currency}${Number(value || 0).toLocaleString("en-IN")}`;
 const stockNumber = (item) => Number(item?.stock ?? item?.stockQty ?? 0);
 const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !== undefined;
+const stockLimit = (item) => hasCustomStock(item) ? Math.max(0, stockNumber(item)) : Infinity;
 const isAvailable = (item) => Boolean(item?.inStock) && (!hasCustomStock(item) || stockNumber(item) > 0);
 const stockText = (item) => isAvailable(item) ? (hasCustomStock(item) ? `${stockNumber(item)} in stock` : "In Stock") : "Stock Out";
 const isBlank = (value) => value === "" || value === null || value === undefined;
@@ -114,6 +115,7 @@ function App() {
     scrollTo({ top: 0, behavior: "smooth" });
   };
   const updateStore = async (next, successMessage = "✓ Changes saved successfully", errorMessage = "✕ Failed to save changes. Please try again.") => {
+    const previous = store;
     const updated = typeof next === "function" ? next(store) : next;
     setSaveStatus("Saving...");
     setStore(updated);
@@ -131,17 +133,21 @@ function App() {
       setSavedStore(saved);
       setSaveStatus(successMessage);
     } catch {
+      setStore(previous);
+      setSavedStore(previous);
       setSaveStatus(errorMessage);
     }
   };
-  const addToCart = (productId, variationId, quantity = 1) => {
+  const addToCart = (productId, variationId, quantity = 1, unitPrice) => {
     const product = ctx.productById[productId];
     const variation = product?.variations.find((item) => item.id === variationId);
     if (!product?.active || !isAvailable(variation)) return false;
+    const maxStock = stockLimit(variation);
+    const price = unitPrice === undefined ? variation.price : Number(unitPrice);
     setCart((items) => {
       const found = items.find((item) => item.productId === productId && item.variationId === variationId);
-      if (found) return items.map((item) => item === found ? { ...item, quantity: item.quantity + quantity } : item);
-      return [...items, { productId, variationId, quantity }];
+      if (found) return items.map((item) => item === found ? { ...item, quantity: Math.min(maxStock, item.quantity + quantity), unitPrice: unitPrice === undefined ? item.unitPrice : price } : item);
+      return [...items, { productId, variationId, quantity: Math.min(maxStock, Math.max(1, quantity)), unitPrice: price }];
     });
     setNotice(`${product.name} (${variation.name}) added to cart`);
     return true;
@@ -176,6 +182,7 @@ function App() {
           {route === "/offers" && <Offers {...props} />}
           {route === "/cart" && <Cart {...props} />}
           {route.startsWith("/admin") && <Admin {...props} />}
+          {!(["/", "/products", "/categories", "/offers", "/cart"].includes(route) || route.startsWith("/products/") || route.startsWith("/categories/") || route.startsWith("/admin")) && <Empty title="Page not found" action={() => navigate("/")} />}
         </RouteErrorBoundary>
       </main>
       {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
@@ -222,7 +229,9 @@ function hydrateCart(cart, ctx) {
     const product = ctx.productById[item.productId];
     const variation = product?.variations.find((v) => v.id === item.variationId);
     if (!product || !variation) return null;
-    return { ...item, product, variation, lineTotal: variation.price * item.quantity, purchasable: product.active && isAvailable(product) && isAvailable(variation) };
+    const unitPrice = Number.isFinite(Number(item.unitPrice)) ? Number(item.unitPrice) : Number(variation.price);
+    const quantity = Math.min(Math.max(1, Number(item.quantity) || 1), stockLimit(variation));
+    return { ...item, quantity, unitPrice, product, variation, lineTotal: unitPrice * quantity, purchasable: product.active && isAvailable(variation) && quantity <= stockLimit(variation) };
   }).filter(Boolean);
 }
 
@@ -444,6 +453,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
   const selected = product.variations.find((v) => v.id === variationId);
   const canBuy = product.active && isAvailable(selected);
+  const maxQuantity = stockLimit(selected);
   const buy = () => { if (addToCart(product.id, selected.id, quantity)) navigate("/cart"); };
   return (
     <section className="detail page-top">
@@ -460,7 +470,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
           const stocked = isAvailable(v);
           return <button disabled={!stocked} className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={stocked ? "" : "danger"}>{v.shortDescription || stockText(v)}</small>{v.shortDescription && <small className={stocked ? "" : "danger"}>{stockText(v)}</small>}</button>;
         })}</div>
-        <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button onClick={() => setQuantity(quantity + 1)}>+</button></div>
+        <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button disabled={quantity >= maxQuantity} onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
       </div>
     </section>
@@ -484,7 +494,7 @@ function ProductSkeletonGrid() {
 function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
   const duration = Math.max(0, Number(settings.offerTimerMinutes || 0)) * 60;
-  const secondsLeft = duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0;
+  const secondsLeft = (offer) => offer.endDate ? Math.max(0, Math.ceil((new Date(`${offer.endDate}T23:59:59`).getTime() - timerTick) / 1000)) : (duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0);
   return <div className="offer-grid">{offers.map((offer) => {
     const product = ctx.productById[offer.productId];
     const variation = product?.variations?.find((v) => v.id === offer.variationId);
@@ -500,12 +510,12 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
           <span className="pill">Deal</span>
           <h3>{offer.title}</h3>
           <p>{offer.description}</p>
-          {!!duration && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft)}</b></span>}
+          {(offer.endDate || duration) && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft(offer))}</b></span>}
           <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
           {(!product || !variation) && <small className="danger">Offer product is not configured</small>}
           <div className="card-actions">
             <button disabled={!product} onClick={() => product && navigate(`/products/${product.slug}`)}>View</button>
-            <button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id)}>Add</button>
+            <button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id, 1, offer.price)}>Add</button>
           </div>
         </div>
       </article>
@@ -518,7 +528,7 @@ function Cart({ cartLines, setCart, store }) {
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal, store.settings.currency)}`).join("\n")}\n\nTotal: ${money(total, store.settings.currency)}\n\nPlease let me know the payment details and next steps.`;
   return (
     <section className="section page-top cart-page"><h1>Cart</h1>
-      {!cartLines.length ? <Empty title="Your cart is empty" /> : cartLines.map((item) => <div className="cart-row" key={`${item.productId}-${item.variationId}`}><img src={item.product.image} alt={item.product.name} /><div><strong>{item.product.name}</strong><span>{item.variation.name}</span>{item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}{!item.purchasable && <small className="danger">Currently out of stock</small>}</div><b>{money(item.variation.price, store.settings.currency)}</b><input type="number" min="1" value={item.quantity} onChange={(e) => setCart((cart) => cart.map((c) => c.productId === item.productId && c.variationId === item.variationId ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} /><strong>{money(item.lineTotal, store.settings.currency)}</strong><button className="text-btn" onClick={() => setCart((cart) => cart.filter((c) => !(c.productId === item.productId && c.variationId === item.variationId)))}>Remove</button></div>)}
+      {!cartLines.length ? <Empty title="Your cart is empty" /> : cartLines.map((item) => <div className="cart-row" key={`${item.productId}-${item.variationId}`}><img src={item.product.image} alt={item.product.name} /><div><strong>{item.product.name}</strong><span>{item.variation.name}</span>{item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}{!item.purchasable && <small className="danger">Currently out of stock</small>}</div><b>{money(item.unitPrice, store.settings.currency)}</b><input type="number" min="1" max={Number.isFinite(stockLimit(item.variation)) ? stockLimit(item.variation) : undefined} value={item.quantity} onChange={(e) => setCart((cart) => cart.map((c) => c.productId === item.productId && c.variationId === item.variationId ? { ...c, quantity: Math.min(Math.max(1, Number(e.target.value) || 1), stockLimit(item.variation)) } : c))} /><strong>{money(item.lineTotal, store.settings.currency)}</strong><button className="text-btn" onClick={() => setCart((cart) => cart.filter((c) => !(c.productId === item.productId && c.variationId === item.variationId)))}>Remove</button></div>)}
       {!!cartLines.length && <aside className="summary"><span>Subtotal</span><strong>{money(total, store.settings.currency)}</strong><span>Total</span><strong>{money(total, store.settings.currency)}</strong><a className={cartLines.every((i) => i.purchasable) ? "order-btn" : "order-btn disabled"} href={`https://wa.me/${store.settings.whatsappNumber}?text=${encodeURIComponent(message)}`} target="_blank">Order Now</a></aside>}
     </section>
   );

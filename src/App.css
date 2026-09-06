@@ -2416,6 +2416,10 @@ footer {
   body {
     padding-bottom: 22px;
   }
+
+  main.with-sticky-cart {
+    padding-bottom: 22px;
+  }
 }
 
 @media (max-width: 359px) {
