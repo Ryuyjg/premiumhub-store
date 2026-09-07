@@ -320,7 +320,7 @@ function Header({ settings, cartCount, navigate, route }) {
 function NavButtons({ cartCount, route, go }) {
   return (
     <>
-      {["Home", "Categories", "Offers", "Products"].map((label) => {
+      {["Home", "Offers", "Products", "Categories"].map((label) => {
         const path = label === "Home" ? "/" : `/${label.toLowerCase()}`;
         const active = path === "/" ? route === "/" : route.startsWith(path);
         return <button className={active ? "active" : ""} key={label} onClick={() => go(path)}>{label}</button>;
