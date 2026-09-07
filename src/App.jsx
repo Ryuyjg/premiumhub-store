@@ -407,7 +407,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
         <CategoryGrid categories={ctx.categories.filter((c) => c.featured).slice(0, 4)} navigate={navigate} />
       </Section>
       <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-        <OfferGrid offers={ctx.activeOffers.slice(0, 3)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} />
+        <OfferGrid offers={ctx.activeOffers.slice(0, 3)} settings={store.settings} timerTick={timerTick} />
       </Section>
       <Section title="Featured Products" action="View all" onAction={() => navigate("/products")}>
         {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
@@ -538,14 +538,14 @@ function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalog
 }
 
 function Offers({ ctx, store, addToCart, navigate, timerTick, isCatalogLoading }) {
-  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} timerTick={timerTick} />}</section>;
+  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} />}</section>;
 }
 
 function ProductSkeletonGrid() {
   return <div className="product-grid skeleton-grid" aria-label="Loading products">{Array.from({ length: 4 }).map((_, index) => <article className="product-card skeleton-card" key={index}><span className="skeleton-img" /><span className="skeleton-line wide" /><span className="skeleton-line" /><span className="skeleton-line short" /><span className="skeleton-button" /></article>)}</div>;
 }
 
-function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
+function OfferGrid({ offers, settings, timerTick }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
   const duration = Math.max(0, Number(settings.offerTimerMinutes || 0)) * 60;
   const secondsLeft = (offer) => {
@@ -555,33 +555,19 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
     return Number.isNaN(time) ? 0 : Math.max(0, Math.ceil((time - timerTick) / 1000));
   };
   return <div className="offer-grid">{offers.map((offer) => {
-    const products = (offer.productIds && offer.productIds.length > 0 ? offer.productIds : [offer.productId]).map(id => ctx.productById[id]).filter(Boolean);
-    const primaryProduct = products[0];
-    const variation = primaryProduct?.variations?.find((v) => v.id === offer.variationId) || primaryProduct?.variations?.[0];
-    const canBuy = Boolean(primaryProduct?.active && variation && isAvailable(variation));
-    const image = offer.image || primaryProduct?.image || logo("DEAL", "#166534");
+    const image = offer.image || logo("DEAL", "#166534");
     return (
       <article className="offer-card" key={offer.id}>
         <div className="image-wrap">
           <img src={image} alt={offer.title || "Offer"} />
-          {!canBuy && <span className="stock-badge">Stock Out</span>}
         </div>
         <div>
           <span className="pill">Deal</span>
           <h3>{offer.title}</h3>
+          {offer.itemName && <p className="offer-item-name">{offer.itemName}</p>}
           <p>{offer.description}</p>
           {(offer.endDate || duration) && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft(offer))}</b></span>}
           <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
-          {(!primaryProduct || !variation) && <small className="danger">Offer product is not configured</small>}
-          <div className="card-actions">
-            <button disabled={!primaryProduct} onClick={() => primaryProduct && navigate(`/products/${primaryProduct.slug}`)}>View</button>
-            <button disabled={!canBuy} className="ghost" onClick={() => {
-              products.forEach((p, index) => {
-                const vId = index === 0 ? variation.id : (p.variations.find(v => isAvailable(v))?.id || p.variations[0]?.id);
-                if (vId) addToCart(p.id, vId, 1, index === 0 ? offer.price : 0);
-              });
-            }}>Add</button>
-          </div>
         </div>
       </article>
     );
@@ -783,10 +769,8 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
 }
 
 function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
-  const first = store.products[0];
-  const blank = { id: uid("offer"), title: "", productId: first?.id || "", productIds: first ? [first.id] : [], variationId: first?.variations[0]?.id || "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
+  const blank = { id: uid("offer"), title: "", itemName: "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
   const [draft, setDraft] = useState(blank);
-  const product = store.products.find((p) => p.id === draft.productId);
   const save = () => {
     if (draft.price === "" || draft.price === null || draft.price === undefined) {
       setSaveStatus("Price is required.");
@@ -801,12 +785,11 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   };
   const form = (
     <div className="form-grid">
-      <label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label>
-      <label>Product(s) for Combo<select multiple value={draft.productIds || (draft.productId ? [draft.productId] : [])} onChange={(e) => { const selected = Array.from(e.target.selectedOptions).map(o => o.value); const p = store.products.find((item) => item.id === selected[0]); setDraft({ ...draft, productIds: selected, productId: selected[0] || "", variationId: p?.variations[0]?.id || "" }); }} style={{ minHeight: "120px" }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><small className="muted">Hold Ctrl/Cmd to select multiple for a combo</small></label>
-      <label>Primary Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
+      <label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Netflix + Prime Combo" /></label>
+      <label>Item name (shown on offer card)<input value={draft.itemName || ""} onChange={(e) => setDraft({ ...draft, itemName: e.target.value })} placeholder="e.g. Netflix Premium + Amazon Prime" /></label>
       <label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label>
       <label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label>
-      <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /></label>
+      <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Short description of this offer" /></label>
       <label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label>
       <label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label>
       <label className="image-field">Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
