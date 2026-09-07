@@ -1497,6 +1497,11 @@ input, select, textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
 }
 
+option {
+  color: #05060A;
+  background: #FFFFFF;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: 0;
   border-color: rgba(109, 40, 217, .88);

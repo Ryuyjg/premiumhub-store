@@ -555,10 +555,11 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
     return Number.isNaN(time) ? 0 : Math.max(0, Math.ceil((time - timerTick) / 1000));
   };
   return <div className="offer-grid">{offers.map((offer) => {
-    const product = ctx.productById[offer.productId];
-    const variation = product?.variations?.find((v) => v.id === offer.variationId);
-    const canBuy = Boolean(product?.active && variation && isAvailable(variation));
-    const image = offer.image || product?.image || logo("DEAL", "#166534");
+    const products = (offer.productIds && offer.productIds.length > 0 ? offer.productIds : [offer.productId]).map(id => ctx.productById[id]).filter(Boolean);
+    const primaryProduct = products[0];
+    const variation = primaryProduct?.variations?.find((v) => v.id === offer.variationId) || primaryProduct?.variations?.[0];
+    const canBuy = Boolean(primaryProduct?.active && variation && isAvailable(variation));
+    const image = offer.image || primaryProduct?.image || logo("DEAL", "#166534");
     return (
       <article className="offer-card" key={offer.id}>
         <div className="image-wrap">
@@ -571,10 +572,15 @@ function OfferGrid({ offers, ctx, settings, addToCart, navigate, timerTick }) {
           <p>{offer.description}</p>
           {(offer.endDate || duration) && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft(offer))}</b></span>}
           <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
-          {(!product || !variation) && <small className="danger">Offer product is not configured</small>}
+          {(!primaryProduct || !variation) && <small className="danger">Offer product is not configured</small>}
           <div className="card-actions">
-            <button disabled={!product} onClick={() => product && navigate(`/products/${product.slug}`)}>View</button>
-            <button disabled={!canBuy} className="ghost" onClick={() => addToCart(product.id, variation.id, 1, offer.price)}>Add</button>
+            <button disabled={!primaryProduct} onClick={() => primaryProduct && navigate(`/products/${primaryProduct.slug}`)}>View</button>
+            <button disabled={!canBuy} className="ghost" onClick={() => {
+              products.forEach((p, index) => {
+                const vId = index === 0 ? variation.id : (p.variations.find(v => isAvailable(v))?.id || p.variations[0]?.id);
+                if (vId) addToCart(p.id, vId, 1, index === 0 ? offer.price : 0);
+              });
+            }}>Add</button>
           </div>
         </div>
       </article>
@@ -778,7 +784,7 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
 
 function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const first = store.products[0];
-  const blank = { id: uid("offer"), title: "", productId: first?.id || "", variationId: first?.variations[0]?.id || "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
+  const blank = { id: uid("offer"), title: "", productId: first?.id || "", productIds: first ? [first.id] : [], variationId: first?.variations[0]?.id || "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
   const [draft, setDraft] = useState(blank);
   const product = store.products.find((p) => p.id === draft.productId);
   const save = () => {
@@ -796,8 +802,8 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const form = (
     <div className="form-grid">
       <label>Offer title<input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Offer title" /></label>
-      <label>Product<select value={draft.productId} onChange={(e) => { const p = store.products.find((item) => item.id === e.target.value); setDraft({ ...draft, productId: e.target.value, variationId: p?.variations[0]?.id || "" }); }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-      <label>Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
+      <label>Product(s) for Combo<select multiple value={draft.productIds || (draft.productId ? [draft.productId] : [])} onChange={(e) => { const selected = Array.from(e.target.selectedOptions).map(o => o.value); const p = store.products.find((item) => item.id === selected[0]); setDraft({ ...draft, productIds: selected, productId: selected[0] || "", variationId: p?.variations[0]?.id || "" }); }} style={{ minHeight: "120px" }}>{store.products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><small className="muted">Hold Ctrl/Cmd to select multiple for a combo</small></label>
+      <label>Primary Variation<select value={draft.variationId} onChange={(e) => setDraft({ ...draft, variationId: e.target.value })}>{product?.variations.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></label>
       <label>Selling price<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} /></label>
       <label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label>
       <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /></label>
