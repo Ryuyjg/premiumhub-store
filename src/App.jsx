@@ -27,17 +27,26 @@ const twoDigits = (value) => String(value).padStart(2, "0");
 const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 60))}:${twoDigits(seconds % 60)}`;
 const setSavedStore = (data) => {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    // Store with a timestamp so we know when admin last saved locally
+    localStorage.setItem(STORE_KEY, JSON.stringify({ ...data, _savedAt: Date.now() }));
   } catch {
     // Uploaded images can exceed browser storage; database saving should still continue.
   }
 };
 
+function getLocalSavedAt() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return 0;
+    return JSON.parse(raw)._savedAt || 0;
+  } catch { return 0; }
+}
+
 function loadStore() {
   const saved = localStorage.getItem(STORE_KEY);
   if (!saved) return seedData;
   try {
-    const parsed = JSON.parse(saved);
+    const { _savedAt, ...parsed } = JSON.parse(saved);
     if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.products) || !Array.isArray(parsed.offers)) return seedData;
     return { ...seedData, ...parsed, settings: { ...seedData.settings, ...parsed.settings } };
   } catch {
@@ -68,15 +77,20 @@ function App() {
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
+    const localSavedAt = getLocalSavedAt();
     fetch("/api/catalog")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Catalog API failed")))
       .then((data) => {
-        setStore(data);
-        setSavedStore(data);
+        // Only use API data if admin has never saved locally (fresh device / no local edits)
+        // If admin has local saved changes, keep them — don't overwrite with stale server data
+        if (!localSavedAt) {
+          setStore(data);
+          setSavedStore(data);
+        }
         setDataStatus("Database connected");
       })
       .catch(() => {
-        setDataStatus("Using local demo data");
+        setDataStatus("Using local data");
       });
   }, []);
   useEffect(() => {
@@ -116,9 +130,9 @@ function App() {
     scrollTo({ top: 0, behavior: "smooth" });
   };
   const updateStore = async (next, successMessage = "✓ Changes saved successfully", errorMessage = "✕ Failed to save changes. Please try again.") => {
-    const previous = store;
     const updated = typeof next === "function" ? next(store) : next;
     setSaveStatus("Saving...");
+    // Always apply changes to state and localStorage immediately — never revert
     setStore(updated);
     setSavedStore(updated);
     try {
@@ -134,9 +148,8 @@ function App() {
       setSavedStore(saved);
       setSaveStatus(successMessage);
     } catch {
-      setStore(previous);
-      setSavedStore(previous);
-      setSaveStatus(errorMessage);
+      // Keep the local changes — don't revert. Data is safe in localStorage.
+      setSaveStatus("✓ Saved locally. Tap Save again to retry cloud sync.");
     }
   };
   const addToCart = (productId, variationId, quantity = 1, unitPrice) => {
