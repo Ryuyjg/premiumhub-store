@@ -553,7 +553,7 @@ function OfferGrid({ offers, settings, timerTick }) {
   const urgencySeconds = URGENCY_CYCLE - (Math.floor(timerTick / 1000) % URGENCY_CYCLE);
   return <div className="offer-grid">{offers.map((offer) => {
     const image = offer.image || logo("DEAL", "#166834");
-    const waText = encodeURIComponent(`Hi! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price, settings.currency)}. Please confirm.`);
+    const waText = encodeURIComponent(`Hi PremiumHub! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price, settings.currency)} Combo Offer. Please Let Me Know the Payment Method.`);
     const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${waText}`;
     return (
       <article className="offer-card" key={offer.id}>
