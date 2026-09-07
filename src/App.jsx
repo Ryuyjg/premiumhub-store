@@ -24,7 +24,7 @@ const lowestVariation = (product) => {
 const productStockText = (product) => hasAvailableVariation(product) ? "In Stock" : "Stock Out";
 const whatsappGroupUrl = (settings) => settings.whatsappGroupLink?.trim();
 const twoDigits = (value) => String(value).padStart(2, "0");
-const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 3600))}:${twoDigits(Math.floor((seconds % 3600) / 60))}:${twoDigits(seconds % 60)}`;
+const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 60))}:${twoDigits(seconds % 60)}`;
 const setSavedStore = (data) => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
@@ -537,7 +537,7 @@ function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalog
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
-function Offers({ ctx, store, addToCart, navigate, timerTick, isCatalogLoading }) {
+function Offers({ ctx, store, timerTick, isCatalogLoading }) {
   return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} />}</section>;
 }
 
@@ -545,29 +545,33 @@ function ProductSkeletonGrid() {
   return <div className="product-grid skeleton-grid" aria-label="Loading products">{Array.from({ length: 4 }).map((_, index) => <article className="product-card skeleton-card" key={index}><span className="skeleton-img" /><span className="skeleton-line wide" /><span className="skeleton-line" /><span className="skeleton-line short" /><span className="skeleton-button" /></article>)}</div>;
 }
 
+// Urgency timer: always cycles 15 min (900 seconds) regardless of offer end date
+const URGENCY_CYCLE = 900;
 function OfferGrid({ offers, settings, timerTick }) {
   if (!offers.length) return <p className="muted">No active offers right now.</p>;
-  const duration = Math.max(0, Number(settings.offerTimerMinutes || 0)) * 60;
-  const secondsLeft = (offer) => {
-    if (!offer.endDate) return duration ? duration - (Math.floor(timerTick / 1000) % duration) : 0;
-    const targetStr = offer.endDate.includes("T") ? offer.endDate : `${offer.endDate}T23:59:59`;
-    const time = new Date(targetStr).getTime();
-    return Number.isNaN(time) ? 0 : Math.max(0, Math.ceil((time - timerTick) / 1000));
-  };
+  // urgency: always count down from 15 min, cycling
+  const urgencySeconds = URGENCY_CYCLE - (Math.floor(timerTick / 1000) % URGENCY_CYCLE);
   return <div className="offer-grid">{offers.map((offer) => {
-    const image = offer.image || logo("DEAL", "#166534");
+    const image = offer.image || logo("DEAL", "#166834");
+    const waText = encodeURIComponent(`Hi! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price, settings.currency)}. Please confirm.`);
+    const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${waText}`;
     return (
       <article className="offer-card" key={offer.id}>
-        <div className="image-wrap">
+        <div className="offer-card-image">
           <img src={image} alt={offer.title || "Offer"} />
         </div>
-        <div>
-          <span className="pill">Deal</span>
+        <div className="offer-card-body">
+          <div className="offer-card-top">
+            <span className="pill">Deal</span>
+            <span className="offer-timer"><b>{formatOfferTimer(urgencySeconds)}</b> left</span>
+          </div>
           <h3>{offer.title}</h3>
           {offer.itemName && <p className="offer-item-name">{offer.itemName}</p>}
           <p>{offer.description}</p>
-          {(offer.endDate || duration) && <span className="offer-timer">Ends in <b>{formatOfferTimer(secondsLeft(offer))}</b></span>}
-          <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
+          <div className="offer-card-foot">
+            <strong>{money(offer.price, settings.currency)} <s>{offer.originalPrice ? money(offer.originalPrice, settings.currency) : ""}</s></strong>
+            <a className="offer-order-btn" href={waUrl} target="_blank" rel="noopener noreferrer">Order Now</a>
+          </div>
         </div>
       </article>
     );
