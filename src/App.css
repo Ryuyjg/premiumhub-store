@@ -237,8 +237,8 @@ button:disabled, .disabled { opacity: .45; pointer-events: none; }
   100% { transform: translateY(-3px) rotate(-0.5deg); }
 }
 
-.desktop-only { display: flex; }
-.mobile-only { display: none; }
+.desktop-only { display: flex !important; }
+.mobile-only { display: none !important; }
 
 .site-nav {
   display: flex;
