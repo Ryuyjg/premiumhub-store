@@ -77,13 +77,10 @@ function App() {
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
-    const localSavedAt = getLocalSavedAt();
     fetch("/api/catalog")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Catalog API failed")))
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
       .then((data) => {
-        // Only use API data if admin has never saved locally (fresh device / no local edits)
-        // If admin has local saved changes, keep them — don't overwrite with stale server data
-        if (!localSavedAt) {
+        if (data && Array.isArray(data.products)) {
           setStore(data);
           setSavedStore(data);
         }
