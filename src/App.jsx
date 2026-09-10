@@ -823,6 +823,10 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   const blank = { id: uid("category"), name: "", slug: "", description: "", active: true, featured: false, order: store.categories.length + 1, image: logo("CAT", "#475569") };
   const [draft, setDraft] = useState(blank);
   const save = () => {
+    if (!draft.name || !draft.name.trim()) {
+      setSaveStatus("Category name is required.");
+      return;
+    }
     if (isBlank(draft.order)) {
       setSaveStatus("Display order is required.");
       return;
