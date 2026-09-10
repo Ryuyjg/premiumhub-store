@@ -77,7 +77,7 @@ function App() {
 
   useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
   useEffect(() => {
-    fetch("/api/catalog")
+    fetch(`/api/catalog?_t=${Date.now()}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
       .then((data) => {
         if (data && Array.isArray(data.products)) {
@@ -601,16 +601,6 @@ function Cart({ cartLines, setCart, store }) {
 
 function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
   const [tab, setTab] = useState("products");
-  useEffect(() => {
-    if (!adminAuthed) return;
-    const hasHugeLogo = store.settings?.logoImage && store.settings.logoImage.length > 50000;
-    const hasHugeProduct = store.products?.some((p) => p.image && p.image.length > 60000);
-    const hasHugeCat = store.categories?.some((c) => c.image && c.image.length > 60000);
-    if (hasHugeLogo || hasHugeProduct || hasHugeCat) {
-      optimizeAllStoreImages(store, updateStore, setSaveStatus);
-    }
-  }, [adminAuthed]);
-
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !hasAvailableVariation(p)).length };
   return (
@@ -651,36 +641,71 @@ function Login({ onLogin }) {
 }
 
 function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
-  const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [] };
+  const makeDefaultVar = (pid = "var") => ({ id: uid(pid), name: "1 Month", price: "", originalPrice: "", shortDescription: "", stock: 10, inStock: true, sku: "", order: 1 });
+  const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [makeDefaultVar()] };
   const [draft, setDraft] = useState(blank);
+
+  const pickProduct = (item) => {
+    const cloned = structuredClone(item);
+    if (!cloned.variations || cloned.variations.length === 0) {
+      cloned.variations = [makeDefaultVar(cloned.id)];
+    }
+    setDraft(cloned);
+  };
+
   const save = () => {
+    if (!draft.name || !draft.name.trim()) {
+      setSaveStatus("Product name is required.");
+      return;
+    }
     if (isBlank(draft.order)) {
       setSaveStatus("Display order is required.");
       return;
     }
-    const missingPrice = draft.variations.some((variation) => isBlank(variation.price));
+    if (!draft.variations || draft.variations.length === 0) {
+      setSaveStatus("⚠️ Please add at least one plan variation with a selling price (e.g. 1 Month).");
+      return;
+    }
+    const missingPrice = draft.variations.some((v) => isBlank(v.price) || Number(v.price) <= 0);
     if (missingPrice) {
-      setSaveStatus("Price is required.");
+      setSaveStatus("⚠️ Selling price is required for all plans.");
       return;
     }
-    const missingVariationStock = draft.variations.some((variation) => isBlank(variation.stock));
-    if (missingVariationStock) {
-      setSaveStatus("Current stock is required.");
-      return;
-    }
-    const variations = draft.variations.map((variation) => {
-      const variationStock = Math.max(0, Number(variation.stock));
+    const variations = draft.variations.map((variation, index) => {
+      const variationStock = Math.max(0, Number(variation.stock) || (variation.inStock !== false ? 10 : 0));
       const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
-      return { ...variation, price: Number(variation.price), originalPrice, stock: variationStock, inStock: variationStock > 0 };
+      return {
+        ...variation,
+        name: variation.name || `Plan ${index + 1}`,
+        price: Number(variation.price),
+        originalPrice,
+        stock: variationStock,
+        inStock: variation.inStock !== false && variationStock > 0,
+      };
     });
-    const stock = variations.reduce((sum, variation) => sum + stockNumber(variation), 0);
+    const stock = variations.reduce((sum, v) => sum + (v.inStock ? stockNumber(v) : 0), 0);
+    const inStock = variations.some((v) => v.inStock && stockNumber(v) > 0);
     updateStore(
-      (s) => ({ ...s, products: [...s.products.filter((p) => p.id !== draft.id), { ...draft, slug: draft.slug || slugify(draft.name), features: textToList(draft.features), stock, order: Number(draft.order), inStock: stock > 0, variations }] }),
+      (s) => ({
+        ...s,
+        products: [
+          ...s.products.filter((p) => p.id !== draft.id),
+          {
+            ...draft,
+            slug: draft.slug || slugify(draft.name),
+            features: textToList(draft.features),
+            stock,
+            order: Number(draft.order),
+            inStock,
+            variations,
+          },
+        ],
+      }),
       "✓ Product saved successfully",
       "✕ Failed to save product. Please try again."
     );
   };
-  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product") })} list={store.products} pick={setDraft} activeId={draft.id} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} currency={store.settings.currency} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
+  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product"), variations: [makeDefaultVar()] })} list={store.products} pick={pickProduct} activeId={draft.id} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} currency={store.settings.currency} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
 }
 
 function ProductForm({ draft, setDraft, categories, currency }) {
@@ -711,7 +736,7 @@ function ProductForm({ draft, setDraft, categories, currency }) {
           <span>02</span>
           <div>
             <h3>Pricing & Variations</h3>
-            <p>Plans, prices, and stock availability.</p>
+            <p>Set selling price, MRP, and stock availability for each plan.</p>
           </div>
         </div>
         <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} currency={currency} />
@@ -737,32 +762,56 @@ function ProductForm({ draft, setDraft, categories, currency }) {
 }
 
 function VariationEditor({ variations, setVariations, productId, currency }) {
-  const set = (id, key, value) => setVariations(variations.map((v) => v.id === id ? { ...v, [key]: value } : v));
+  const set = (id, key, value) => setVariations(variations.map((v) => (v.id === id ? { ...v, [key]: value } : v)));
   const setStock = (id, value) => {
-    setVariations(variations.map((v) => v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v));
+    setVariations(variations.map((v) => (v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v)));
+  };
+  const addVar = () => {
+    setVariations([
+      ...variations,
+      {
+        id: uid(productId || "var"),
+        name: variations.length === 0 ? "1 Month" : `${variations.length + 1} Months`,
+        price: "",
+        originalPrice: "",
+        shortDescription: "",
+        stock: 10,
+        inStock: true,
+        sku: "",
+        order: variations.length + 1,
+      },
+    ]);
   };
   return (
     <div className="variation-editor">
       <div className="variation-title">
-        <h4>Plan Variations</h4>
-        <button className="ghost" onClick={() => setVariations([...variations, { id: uid(productId), name: "1 Month", price: "", originalPrice: "", shortDescription: "", stock: 10, inStock: true, sku: "", order: variations.length + 1 }])}>+ Add Variation</button>
+        <div>
+          <h4>Plan Variations & Pricing</h4>
+        </div>
+        <button type="button" className="ghost" onClick={addVar}>+ Add Another Plan</button>
       </div>
-      {variations.map((v) => (
-        <details className="variation-card" key={v.id} open={!v.name}>
+      {!variations.length && (
+        <div style={{ padding: "16px", background: "rgba(255, 107, 107, 0.12)", border: "1px solid rgba(255, 107, 107, 0.3)", borderRadius: "14px", textAlign: "center" }}>
+          <p style={{ margin: "0 0 10px 0", color: "#FF6B6B", fontWeight: "bold" }}>⚠️ No pricing plan added! Add at least one plan so customers can order.</p>
+          <button type="button" onClick={addVar}>+ Add Plan & Price</button>
+        </div>
+      )}
+      {variations.map((v, index) => (
+        <details className="variation-card" key={v.id} open>
           <summary>
-            <span className="variation-name">{v.name || "New variation"}</span>
-            <span>Price: {isBlank(v.price) ? "Required" : `${currency}${v.price}`}</span>
-            <span>Original: {isBlank(v.originalPrice) ? "None" : `${currency}${v.originalPrice}`}</span>
-            <span className={isAvailable(v) ? "stock-dot" : "stock-dot out"}>{isAvailable(v) ? "In Stock" : "Stock Out"}</span>
+            <span className="variation-name">Plan #{index + 1}: {v.name || "New plan"}</span>
+            <span style={{ color: isBlank(v.price) ? "#FF6B6B" : "inherit" }}>Selling: {isBlank(v.price) ? "⚠️ Price Required" : `${currency}${v.price}`}</span>
+            <span>MRP: {isBlank(v.originalPrice) ? "None" : `${currency}${v.originalPrice}`}</span>
+            <span className={isAvailable(v) ? "stock-dot" : "stock-dot out"}>{isAvailable(v) ? `In Stock (${stockNumber(v)})` : "Stock Out"}</span>
           </summary>
           <div className="variation-row">
-            <label>Plan name<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="1 Month" /></label>
-            <label>Selling price<input type="number" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="Current price" /></label>
-            <label>Original price<input type="number" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="Old price" /></label>
-            <label>Short description<input value={v.shortDescription || ""} onChange={(e) => set(v.id, "shortDescription", e.target.value)} placeholder="4K • 30 days" /></label>
-            <label>Current stock<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="Stock" /></label>
+            <label>Plan duration / name *<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="e.g. 1 Month, 1 Year" required /></label>
+            <label>Selling price ({currency}) *<input type="number" min="0" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="e.g. 199" required /></label>
+            <label>Original / MRP price ({currency})<input type="number" min="0" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="e.g. 399" /></label>
+            <label>Plan note<input value={v.shortDescription || ""} onChange={(e) => set(v.id, "shortDescription", e.target.value)} placeholder="e.g. Private account • 25 days" /></label>
+            <label>Stock qty<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="10" /></label>
             <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
-            <button className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete</button>
+            <button type="button" className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>✕ Delete Plan</button>
           </div>
         </details>
       ))}

@@ -4,7 +4,9 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       return sendJson(res, await getCatalog(), 200, {
-        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+        Pragma: "no-cache",
+        Expires: "0",
       });
     }
 

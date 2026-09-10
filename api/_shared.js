@@ -82,7 +82,38 @@ export async function supabaseRequest(path, options = {}) {
 export async function getCatalog() {
   try {
     const rows = await supabaseRequest(`store_documents?key=eq.${CATALOG_KEY}&select=data`);
-    if (rows?.[0]?.data) return rows[0].data;
+    if (rows?.[0]?.data) {
+      const data = rows[0].data;
+      let repaired = false;
+      if (Array.isArray(data.products)) {
+        data.products = data.products.map((p) => {
+          if (!p.variations || p.variations.length === 0) {
+            repaired = true;
+            const price = p.name && p.name.toLowerCase().includes("capcut") ? 299 : 199;
+            p.variations = [
+              {
+                id: `${p.id}-var-1`,
+                name: "1 Month",
+                price: price,
+                originalPrice: price + 100,
+                stock: 10,
+                inStock: true,
+                shortDescription: p.shortDescription || "Full Access • Fast Delivery",
+                sku: `${(p.name || "PLAN").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)}-1`,
+                order: 1,
+              },
+            ];
+            p.stock = 10;
+            p.inStock = true;
+          }
+          return p;
+        });
+      }
+      if (repaired) {
+        await saveCatalog(data);
+      }
+      return data;
+    }
     await saveCatalog(seedData);
     return seedData;
   } catch {
