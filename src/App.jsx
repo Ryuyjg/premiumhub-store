@@ -419,8 +419,8 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
       <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
         <OfferGrid offers={ctx.activeOffers.slice(0, 3)} settings={store.settings} timerTick={timerTick} />
       </Section>
-      <Section title="Featured Products" action="View all" onAction={() => navigate("/products")}>
-        {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={featured} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
+      <Section title="All Products" action={`${ctx.products.length} Products`} onAction={() => navigate("/products")}>
+        {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
       </Section>
       <section className="contact-cta">
         <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
