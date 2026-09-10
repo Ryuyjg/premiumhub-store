@@ -2,7 +2,11 @@ import { getCatalog, isAdmin, readJson, saveCatalog, sendJson } from "./_shared.
 
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") return sendJson(res, await getCatalog());
+    if (req.method === "GET") {
+      return sendJson(res, await getCatalog(), 200, {
+        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      });
+    }
 
     if (req.method === "PUT") {
       if (!isAdmin(req)) return sendJson(res, { error: "Unauthorized" }, 401);

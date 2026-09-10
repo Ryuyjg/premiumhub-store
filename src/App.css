@@ -547,7 +547,12 @@ p { color: var(--text-soft); font-size: 16px; line-height: 1.65; font-weight: 40
 }
 .category-card strong { font-size: 18px; line-height: 1.3; font-weight: 600; color: var(--text-strong); }
 .category-card span { color: var(--text-soft); font-size: 14px; line-height: 1.5; font-weight: 400; }
-.product-card { position: relative; padding: 13px; display: grid; grid-template-rows: auto 1fr auto auto; gap: 12px; min-height: 382px; min-width: 0; overflow: hidden; }
+.product-card { position: relative; padding: 13px; display: grid; grid-template-rows: auto 1fr auto auto; gap: 12px; min-height: 382px; min-width: 0; overflow: hidden; content-visibility: auto; contain-intrinsic-size: 0 380px; transform: translateZ(0); }
+.image-wrap img, .hero-product img, .category-card img, .offer-card-image img {
+  image-rendering: -webkit-optimize-contrast;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
 .product-card::before {
   content: "";
   position: absolute;

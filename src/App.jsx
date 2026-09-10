@@ -311,7 +311,7 @@ function Header({ settings, cartCount, navigate, route }) {
       <header className="site-header">
         <div className="header-brand-group">
           <button className="brand" onClick={() => go("/")}>
-            {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} /> : <span className="brand-mark">PH</span>}
+            {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} loading="eager" decoding="async" /> : <span className="brand-mark">PH</span>}
             <span>{settings.siteName}</span>
           </button>
           {!isAdminRoute && <FloatingLogos />}
@@ -379,7 +379,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
               return (
                 <div className={open ? "hero-product-wrap open" : "hero-product-wrap"} key={product.id}>
                   <button className="hero-product" onClick={() => setOpenTrendingId(open ? "" : product.id)}>
-                    <img src={product.image} alt={`${product.name} logo`} />
+                    <img src={product.image} alt={`${product.name} logo`} loading="eager" fetchPriority="high" decoding="async" />
                     <span>
                       <b>{product.name}</b>
                       <small>{first ? `From ${money(first.price, store.settings.currency)}` : `From ${money(0, store.settings.currency)}`}</small>
@@ -438,7 +438,7 @@ function Section({ title, action, onAction, children }) {
 }
 
 function CategoryGrid({ categories, navigate }) {
-  return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
+  return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} loading="lazy" decoding="async" /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
 
 function ProductGrid({ products, ctx, settings, addToCart, orderNow, navigate }) {
@@ -453,7 +453,7 @@ function ProductCard({ product, category, settings, orderNow, navigate }) {
   return (
     <article className="product-card">
       <div className="image-wrap">
-        <img src={product.image} alt={`${product.name} logo`} />
+        <img src={product.image} alt={`${product.name} logo`} loading="lazy" decoding="async" />
         {disabled && <span className="stock-badge">Stock Out</span>}
       </div>
       <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
@@ -522,7 +522,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   return (
     <section className="detail page-top">
       <div className="detail-image image-wrap">
-        <img src={product.image} alt={`${product.name} logo`} />
+        <img src={product.image} alt={`${product.name} logo`} decoding="async" fetchPriority="high" />
         {!hasAvailableVariation(product) && <span className="stock-badge">Stock Out</span>}
       </div>
       <div>
@@ -568,7 +568,7 @@ function OfferGrid({ offers, settings, timerTick }) {
     return (
       <article className="offer-card" key={offer.id}>
         <div className="offer-card-image">
-          <img src={image} alt={offer.title || "Offer"} />
+          <img src={image} alt={offer.title || "Offer"} loading="lazy" decoding="async" />
         </div>
         <div className="offer-card-body">
           <div className="offer-card-top">
@@ -601,13 +601,26 @@ function Cart({ cartLines, setCart, store }) {
 
 function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
   const [tab, setTab] = useState("products");
+  useEffect(() => {
+    if (!adminAuthed) return;
+    const hasHugeLogo = store.settings?.logoImage && store.settings.logoImage.length > 50000;
+    const hasHugeProduct = store.products?.some((p) => p.image && p.image.length > 60000);
+    const hasHugeCat = store.categories?.some((c) => c.image && c.image.length > 60000);
+    if (hasHugeLogo || hasHugeProduct || hasHugeCat) {
+      optimizeAllStoreImages(store, updateStore, setSaveStatus);
+    }
+  }, [adminAuthed]);
+
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
   const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !hasAvailableVariation(p)).length };
   return (
     <section className="admin page-top">
       <div className="admin-head">
         <div><h1>Admin Dashboard</h1></div>
-        <button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+          <button className="ghost" type="button" onClick={() => optimizeAllStoreImages(store, updateStore, setSaveStatus)}>⚡ Speed Boost (Compress Images)</button>
+          <button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button>
+        </div>
       </div>
       <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
       <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
@@ -686,7 +699,7 @@ function ProductForm({ draft, setDraft, categories, currency }) {
           <label>Product name<input value={draft.name} onChange={(e) => patch("name", e.target.value)} placeholder="Product name" /></label>
           <label>Category<select value={draft.categoryId} onChange={(e) => patch("categoryId", e.target.value)}>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           <label className="image-field">Product image URL<input value={draft.image} onChange={(e) => patch("image", e.target.value)} placeholder="Paste image URL or upload below" /></label>
-          <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image))} /></label>
+          <label className="image-field">Upload product image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => patch("image", image), 400, 0.75)} /></label>
           <div className="image-preview"><img src={draft.image} alt="Product preview" /></div>
           <label>Short description<textarea value={draft.shortDescription} onChange={(e) => patch("shortDescription", e.target.value)} placeholder="Short description shown on product cards" /></label>
           <label>Full description<textarea value={draft.description} onChange={(e) => patch("description", e.target.value)} placeholder="Full description shown on product details" /></label>
@@ -771,7 +784,7 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     <div className="form-grid">
       <label>Category name<input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Category name" /></label>
       <label className="image-field">Category image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
-      <label className="image-field">Upload category image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }))} /></label>
+      <label className="image-field">Upload category image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }), 320, 0.75)} /></label>
       {draft.image && <div className="image-preview"><img src={draft.image} alt="Category preview" /></div>}
       <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Description" /></label>
       <label>Display order<input type="number" value={draft.order ?? ""} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /></label>
@@ -807,7 +820,7 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       <label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label>
       <label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label>
       <label className="image-field">Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
-      <label className="image-field">Upload offer image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }))} /></label>
+      <label className="image-field">Upload offer image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }), 400, 0.75)} /></label>
       {draft.image && <div className="image-preview"><img src={draft.image} alt="Offer preview" /></div>}
       <label><input type="checkbox" checked={draft.active} onChange={(e) => setDraft({ ...draft, active: e.target.checked })} /> Active</label>
     </div>
@@ -834,7 +847,7 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
           <input value={draft.logoImage || ""} onChange={(e) => setDraft({ ...draft, logoImage: e.target.value })} placeholder="https://..." />
         </label>
         <label className="image-field">Upload logo image
-          <input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files[0], (image) => setDraft({ ...draft, logoImage: image }))} />
+          <input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files[0], (image) => setDraft({ ...draft, logoImage: image }), 240, 0.75)} />
         </label>
         {draft.logoImage && <div className="logo-preview"><img src={draft.logoImage} alt="Logo preview" /></div>}
         <label>Footer text<textarea value={draft.footerText || ""} onChange={(e) => setDraft({ ...draft, footerText: e.target.value })} /></label>
@@ -864,13 +877,106 @@ function textToList(value) {
   return Array.isArray(value) ? value : value.split("\n").map((item) => item.trim()).filter(Boolean);
 }
 
-function readImageFile(file, done) {
+async function optimizeDataUrl(dataUrl, maxDim = 400, quality = 0.75) {
+  if (!dataUrl || typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/") || dataUrl.length < 35000) {
+    return dataUrl;
+  }
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      if (image.width <= maxDim && image.height <= maxDim && dataUrl.length < 50000) {
+        return resolve(dataUrl);
+      }
+      const scale = Math.min(1, maxDim / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/webp", quality));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+}
+
+async function optimizeAllStoreImages(store, updateStore, setStatus) {
+  if (setStatus) setStatus("⚡ Optimizing & compressing images...");
+  try {
+    let changed = false;
+    const newSettings = { ...store.settings };
+    if (newSettings.logoImage && newSettings.logoImage.length > 40000) {
+      const optimizedLogo = await optimizeDataUrl(newSettings.logoImage, 240, 0.75);
+      if (optimizedLogo !== newSettings.logoImage) {
+        newSettings.logoImage = optimizedLogo;
+        changed = true;
+      }
+    }
+    const newProducts = await Promise.all(
+      store.products.map(async (p) => {
+        if (p.image && p.image.length > 40000) {
+          const opt = await optimizeDataUrl(p.image, 400, 0.75);
+          if (opt !== p.image) {
+            changed = true;
+            return { ...p, image: opt };
+          }
+        }
+        return p;
+      })
+    );
+    const newCategories = await Promise.all(
+      store.categories.map(async (c) => {
+        if (c.image && c.image.length > 40000) {
+          const opt = await optimizeDataUrl(c.image, 320, 0.75);
+          if (opt !== c.image) {
+            changed = true;
+            return { ...c, image: opt };
+          }
+        }
+        return c;
+      })
+    );
+    const newOffers = await Promise.all(
+      store.offers.map(async (o) => {
+        if (o.image && o.image.length > 40000) {
+          const opt = await optimizeDataUrl(o.image, 400, 0.75);
+          if (opt !== o.image) {
+            changed = true;
+            return { ...o, image: opt };
+          }
+        }
+        return o;
+      })
+    );
+
+    if (changed) {
+      await updateStore(
+        (s) => ({
+          ...s,
+          settings: newSettings,
+          products: newProducts,
+          categories: newCategories,
+          offers: newOffers,
+        }),
+        "⚡ All images compressed! Catalog now loads instantly.",
+        "✕ Failed to save optimized images"
+      );
+    } else if (setStatus) {
+      setStatus("✓ Images are already fully optimized!");
+    }
+  } catch {
+    if (setStatus) setStatus("✕ Optimization encountered an error.");
+  }
+}
+
+function readImageFile(file, done, maxSize = 400, quality = 0.75) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
     const image = new Image();
     image.onload = () => {
-      const maxSize = 720;
       const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
       const width = Math.max(1, Math.round(image.width * scale));
       const height = Math.max(1, Math.round(image.height * scale));
@@ -879,7 +985,7 @@ function readImageFile(file, done) {
       canvas.height = height;
       const context = canvas.getContext("2d");
       context.drawImage(image, 0, 0, width, height);
-      done(canvas.toDataURL("image/webp", 0.82));
+      done(canvas.toDataURL("image/webp", quality));
     };
     image.onerror = () => done(reader.result);
     image.src = reader.result;
