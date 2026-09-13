@@ -412,6 +412,36 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
           </div>
         </div>
       </section>
+      <div className="trust-strip">
+        <div className="trust-item">
+          <span className="trust-icon">⚡</span>
+          <div>
+            <strong>Instant Setup</strong>
+            <small>Direct WhatsApp delivery</small>
+          </div>
+        </div>
+        <div className="trust-item">
+          <span className="trust-icon">🛡️</span>
+          <div>
+            <strong>100% Replacement Warranty</strong>
+            <small>Guaranteed full duration</small>
+          </div>
+        </div>
+        <div className="trust-item">
+          <span className="trust-icon">⭐</span>
+          <div>
+            <strong>4.9 / 5 Customer Rating</strong>
+            <small>2,000+ active subscribers</small>
+          </div>
+        </div>
+        <div className="trust-item">
+          <span className="trust-icon">💬</span>
+          <div>
+            <strong>Priority Support</strong>
+            <small>24/7 dedicated help</small>
+          </div>
+        </div>
+      </div>
       <Section title="Featured Categories" action="View categories" onAction={() => navigate("/categories")}>
         <CategoryGrid categories={ctx.categories.filter((c) => c.featured).slice(0, 4)} navigate={navigate} />
       </Section>
@@ -531,7 +561,20 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
         <h2>Choose a plan</h2>
         <div className="plans">{product.variations.map((v) => {
           const stocked = isAvailable(v);
-          return <button disabled={!stocked} className={variationId === v.id ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}><span>{v.name}</span><strong>{money(v.price, settings.currency)}</strong><small className={stocked ? "" : "danger"}>{v.shortDescription || stockText(v)}</small>{v.shortDescription && <small className={stocked ? "" : "danger"}>{stockText(v)}</small>}</button>;
+          const isSelected = variationId === v.id;
+          return (
+            <button disabled={!stocked} className={isSelected ? "plan active" : "plan"} key={v.id} onClick={() => stocked && setVariationId(v.id)}>
+              <span className="plan-radio" aria-hidden="true" />
+              <div className="plan-meta">
+                <span className="plan-name">{v.name}</span>
+                {v.shortDescription && <small className="plan-desc">{v.shortDescription}</small>}
+              </div>
+              <div className="plan-pricing">
+                <strong>{money(v.price, settings.currency)}</strong>
+                <span className={stocked ? "plan-stock" : "plan-stock out"}>{stockText(v)}</span>
+              </div>
+            </button>
+          );
         })}</div>
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button disabled={quantity >= maxQuantity} onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
