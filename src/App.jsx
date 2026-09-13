@@ -255,26 +255,25 @@ function hydrateCart(cart, ctx) {
 function FloatingLogos() {
   const logos = useMemo(() => {
     const items = BRAND_LOGOS_DATA.map((b) => {
-      const c = b.color;
-      const alpha = (a) => {
-        const hex = c.replace("#", "");
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const bl = parseInt(hex.substring(4, 6), 16);
-        return `rgba(${r},${g},${bl},${a})`;
-      };
+      const isWhite = b.color.toUpperCase() === "#FFFFFF" || b.color.toUpperCase() === "#FFF";
+      const iconColor = isWhite ? "#0F172A" : b.color;
+      const hex = iconColor.replace("#", "");
+      const r = parseInt(hex.substring(0, 2), 16) || 15;
+      const g = parseInt(hex.substring(2, 4), 16) || 23;
+      const bl = parseInt(hex.substring(4, 6), 16) || 42;
+      const alpha = (a) => `rgba(${r},${g},${bl},${a})`;
       return {
         id: b.id,
         name: b.name,
-        bg: alpha(0.14),
-        border: alpha(0.32),
-        glow: alpha(0.3),
+        bg: alpha(0.06),
+        border: alpha(0.18),
+        glow: alpha(0.08),
         icon: typeof b.path === "string" && b.path.startsWith("<svg") ? (
           <span className="custom-svg-wrapper" dangerouslySetInnerHTML={{ __html: b.path }} />
         ) : b.path ? (
-          <svg viewBox="0 0 24 24"><path d={b.path} fill={b.color} /></svg>
+          <svg viewBox="0 0 24 24"><path d={b.path} fill={iconColor} /></svg>
         ) : (
-          <svg viewBox="0 0 60 24"><text x="30" y="17" fill={b.color} fontSize="13" fontWeight="900" textAnchor="middle" fontFamily="Inter,system-ui,sans-serif">{b.name}</text></svg>
+          <svg viewBox="0 0 60 24"><text x="30" y="17" fill={iconColor} fontSize="13" fontWeight="900" textAnchor="middle" fontFamily="Inter,system-ui,sans-serif">{b.name}</text></svg>
         ),
       };
     });
