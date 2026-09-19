@@ -222,6 +222,17 @@ class RouteErrorBoundary extends Component {
   }
 }
 
+function parseDateBoundary(dateStr, isEnd = false) {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return new Date(trimmed + (isEnd ? "T23:59:59.999" : "T00:00:00.000"));
+  }
+  const d = new Date(trimmed);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function buildContext(store) {
   const now = new Date();
   const categories = [...store.categories].filter((c) => c.active).sort((a, b) => a.order - b.order);
@@ -233,7 +244,14 @@ function buildContext(store) {
       if (aInStock !== bInStock) return aInStock ? -1 : 1;
       return (a.order || 0) - (b.order || 0);
     });
-  const activeOffers = store.offers.filter((offer) => offer.active && (!offer.startDate || new Date(offer.startDate) <= now) && (!offer.endDate || new Date(offer.endDate) >= now));
+  const activeOffers = store.offers.filter((offer) => {
+    if (!offer.active) return false;
+    const start = parseDateBoundary(offer.startDate, false);
+    const end = parseDateBoundary(offer.endDate, true);
+    if (start && start > now) return false;
+    if (end && end < now) return false;
+    return true;
+  });
   return {
     categories, products, activeOffers,
     categoryById: Object.fromEntries(store.categories.map((c) => [c.id, c])),
@@ -446,7 +464,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
         <CategoryGrid categories={ctx.categories.filter((c) => c.featured).slice(0, 4)} navigate={navigate} />
       </Section>
       <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-        <OfferGrid offers={ctx.activeOffers.slice(0, 3)} settings={store.settings} timerTick={timerTick} />
+        <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} />
       </Section>
       <Section title="All Products" action={`${ctx.products.length} Products`} onAction={() => navigate("/products")}>
         {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
@@ -913,7 +931,15 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       <label>Original price<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} /></label>
       <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Short description of this offer" /></label>
       <label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label>
-      <label>End date<input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} /></label>
+      <label>
+        End date <small style={{ fontWeight: 400, color: "#64748b" }}>(leave blank for no expiry)</small>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <input type="date" value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} style={{ flex: 1 }} />
+          {draft.endDate && (
+            <button type="button" className="ghost" style={{ padding: "0.35rem 0.75rem", fontSize: "0.8rem", whiteSpace: "nowrap" }} onClick={() => setDraft({ ...draft, endDate: "" })}>Clear</button>
+          )}
+        </div>
+      </label>
       <label className="image-field">Offer image URL<input value={draft.image} onChange={(e) => setDraft({ ...draft, image: e.target.value })} placeholder="Paste image URL or upload below" /></label>
       <label className="image-field">Upload offer image<input type="file" accept="image/*" onChange={(e) => readImageFile(e.target.files?.[0], (image) => setDraft({ ...draft, image }), 400, 0.75)} /></label>
       {draft.image && <div className="image-preview"><img src={draft.image} alt="Offer preview" /></div>}
@@ -957,8 +983,44 @@ function Field({ label, value, onChange }) {
   return <label>{label}<input value={value || ""} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
+function getAdminItemStatus(item) {
+  if (item.active === false) return { text: "Disabled", danger: true };
+  if (item.endDate) {
+    const end = parseDateBoundary(item.endDate, true);
+    if (end && end < new Date()) {
+      return { text: `Expired (${item.endDate})`, danger: true };
+    }
+  }
+  return { text: "Active", danger: false };
+}
+
 function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveStatus }) {
-  return <section className="admin-editor"><div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div><div className="editor-layout"><div className="admin-list">{list.map((item) => <button className={item.id === activeId ? "selected" : ""} key={item.id} onClick={() => pick(structuredClone(item))}>{item.name || item.title}<small>{item.active === false ? "Disabled" : "Active"}</small></button>)}</div><div className="editor-workspace">{draft}<div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save</button><button className="ghost delete-action" onClick={remove}>Delete</button></div></div></div></section>;
+  return (
+    <section className="admin-editor">
+      <div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div>
+      <div className="editor-layout">
+        <div className="admin-list">
+          {list.map((item) => {
+            const status = getAdminItemStatus(item);
+            return (
+              <button className={item.id === activeId ? "selected" : ""} key={item.id} onClick={() => pick(structuredClone(item))}>
+                {item.name || item.title}
+                <small className={status.danger ? "danger" : ""}>{status.text}</small>
+              </button>
+            );
+          })}
+        </div>
+        <div className="editor-workspace">
+          {draft}
+          <div className="actions editor-actions">
+            <AdminStatusMessage message={saveStatus} />
+            <button onClick={save}>Save</button>
+            <button className="ghost delete-action" onClick={remove}>Delete</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function AdminStatusMessage({ message }) {

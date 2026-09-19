@@ -2884,3 +2884,8 @@ label input[type="checkbox"] {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-list button small.danger {
+  color: #ef4444;
+  font-weight: 700;
+}
