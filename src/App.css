@@ -2889,3 +2889,198 @@ label input[type="checkbox"] {
   color: #ef4444;
   font-weight: 700;
 }
+
+/* ==========================================================================
+   Currency Switcher & Modal Styles
+   ========================================================================== */
+
+.header-nav-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.currency-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.currency-toggle button {
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 11px;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.currency-toggle button:hover {
+  color: #0F172A;
+}
+
+.currency-toggle button.active {
+  background: #0F172A;
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+}
+
+.mobile-header-bar {
+  display: none;
+  justify-content: center;
+  padding: 6px 12px 2px;
+}
+
+@media (max-width: 900px) {
+  .mobile-header-bar {
+    display: flex;
+  }
+}
+
+/* Currency Selection Modal */
+.currency-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+.currency-modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: #FFFFFF;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 28px;
+  padding: 32px 28px;
+  box-shadow: 0 25px 60px -12px rgba(15, 23, 42, 0.25), 0 0 1px 1px rgba(0, 0, 0, 0.04);
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: center;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.currency-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  margin-bottom: 12px;
+}
+
+.currency-modal-header h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0F172A;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.02em;
+}
+
+.currency-modal-header p {
+  font-size: 14px;
+  color: #64748B;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.currency-modal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 24px 0 16px;
+}
+
+.currency-modal-opt {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 2px solid #E2E8F0;
+  border-radius: 20px;
+  background: #F8FAFC;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+}
+
+.currency-modal-opt:hover {
+  background: #FFFFFF;
+  border-color: #0F172A;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px rgba(15, 23, 42, 0.1);
+}
+
+.currency-flag {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.currency-opt-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.currency-opt-info strong {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.currency-opt-info span {
+  font-size: 12.5px;
+  color: #64748B;
+}
+
+.currency-arrow {
+  font-size: 18px;
+  color: #94A3B8;
+  font-weight: 800;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.currency-modal-opt:hover .currency-arrow {
+  color: #0F172A;
+  transform: translateX(3px);
+}
+
+.currency-modal-note {
+  font-size: 12px;
+  color: #94A3B8;
+  margin: 0;
+}
+
