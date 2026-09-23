@@ -473,7 +473,16 @@ function Header({ settings, cartCount, navigate, route, currency, setCurrency })
       <header className="site-header">
         <div className="header-brand-group">
           <button className="brand" onClick={() => go("/")}>
-            {settings.logoImage ? <img className="brand-logo" src={settings.logoImage} alt={`${settings.siteName} logo`} loading="eager" decoding="async" /> : <span className="brand-mark">PH</span>}
+            <img
+              className="brand-logo"
+              src={settings.logoImage || "/logo-icon.png"}
+              alt={`${settings.siteName} logo`}
+              loading="eager"
+              decoding="async"
+              onError={(e) => {
+                e.currentTarget.src = "/logo-icon.png";
+              }}
+            />
             <span>{settings.siteName}</span>
           </button>
           {!isAdminRoute && <FloatingLogos />}
@@ -1326,7 +1335,24 @@ function readImageFile(file, done, maxSize = 400, quality = 0.75) {
 }
 
 function Footer({ settings }) {
-  return <footer><strong>{settings.siteName}</strong><span>{settings.footerText}</span><span>{settings.contact}</span><a href={settings.instagram}>Instagram</a>{whatsappGroupUrl(settings) && <a href={whatsappGroupUrl(settings)} target="_blank">WhatsApp Group</a>}</footer>;
+  const logoSrc = settings.logoImage || "/logo-icon.png";
+  return (
+    <footer>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+        <img
+          src={logoSrc}
+          alt={settings.siteName}
+          style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "contain", background: "#ffffff", border: "1px solid #E2E8F0", padding: "1px" }}
+          onError={(e) => { e.currentTarget.src = "/logo-icon.png"; }}
+        />
+        <strong>{settings.siteName}</strong>
+      </div>
+      <span>{settings.footerText}</span>
+      <span>{settings.contact}</span>
+      <a href={settings.instagram}>Instagram</a>
+      {whatsappGroupUrl(settings) && <a href={whatsappGroupUrl(settings)} target="_blank">WhatsApp Group</a>}
+    </footer>
+  );
 }
 
 function Empty({ title, action }) {

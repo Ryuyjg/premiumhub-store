@@ -43,8 +43,8 @@ export function product(id, name, categoryId, description, features, image, feat
 export const seedData = {
   settings: {
     siteName: "Premium Hub",
-    logoImage: "",
-    tagline: "Premium Subscriptions. Better Prices.",
+    logoImage: "/logo-icon.png",
+    tagline: "More Than Subscriptions",
     whatsappNumber: "919876543210",
     whatsappGroupLink: "",
     offerTimerMinutes: "15",
