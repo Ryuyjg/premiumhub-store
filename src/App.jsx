@@ -3,7 +3,7 @@ import { logo, seedData } from "./storeData";
 import { BRAND_LOGOS_DATA } from "./brandLogos";
 import "./App.css";
 
-const STORE_KEY = "premium-hub-store-v1";
+const STORE_KEY = "premium-hub-store-v2";
 const CART_KEY = "premium-hub-cart-v1";
 const CURRENCY_KEY = "premium-hub-currency-v1";
 
@@ -51,12 +51,19 @@ function getLocalSavedAt() {
 }
 
 function loadStore() {
+  try {
+    localStorage.removeItem("premium-hub-store-v1");
+  } catch {}
   const saved = localStorage.getItem(STORE_KEY);
   if (!saved) return seedData;
   try {
     const { _savedAt, ...parsed } = JSON.parse(saved);
     if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.products) || !Array.isArray(parsed.offers)) return seedData;
-    return { ...seedData, ...parsed, settings: { ...seedData.settings, ...parsed.settings } };
+    const settings = { ...seedData.settings, ...parsed.settings };
+    if (!settings.logoImage || settings.logoImage.startsWith("data:image")) {
+      settings.logoImage = "/logo-icon.png";
+    }
+    return { ...seedData, ...parsed, settings };
   } catch {
     return seedData;
   }
@@ -89,6 +96,9 @@ function App() {
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
       .then((data) => {
         if (data && Array.isArray(data.products)) {
+          if (!data.settings?.logoImage || data.settings.logoImage.startsWith("data:image")) {
+            data.settings = { ...data.settings, logoImage: "/logo-icon.png" };
+          }
           setStore(data);
           setSavedStore(data);
         }
@@ -475,12 +485,12 @@ function Header({ settings, cartCount, navigate, route, currency, setCurrency })
           <button className="brand" onClick={() => go("/")}>
             <img
               className="brand-logo"
-              src={settings.logoImage || "/logo-icon.png"}
+              src={(!settings.logoImage || settings.logoImage.startsWith("data:image")) ? "/logo-icon.png?v=2" : settings.logoImage}
               alt={`${settings.siteName} logo`}
               loading="eager"
               decoding="async"
               onError={(e) => {
-                e.currentTarget.src = "/logo-icon.png";
+                e.currentTarget.src = "/logo-icon.png?v=2";
               }}
             />
             <span>{settings.siteName}</span>
@@ -1335,7 +1345,7 @@ function readImageFile(file, done, maxSize = 400, quality = 0.75) {
 }
 
 function Footer({ settings }) {
-  const logoSrc = settings.logoImage || "/logo-icon.png";
+  const logoSrc = (!settings.logoImage || settings.logoImage.startsWith("data:image")) ? "/logo-icon.png?v=2" : settings.logoImage;
   return (
     <footer>
       <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
@@ -1343,7 +1353,7 @@ function Footer({ settings }) {
           src={logoSrc}
           alt={settings.siteName}
           style={{ width: "32px", height: "32px", borderRadius: "8px", objectFit: "contain", background: "#ffffff", border: "1px solid #E2E8F0", padding: "1px" }}
-          onError={(e) => { e.currentTarget.src = "/logo-icon.png"; }}
+          onError={(e) => { e.currentTarget.src = "/logo-icon.png?v=2"; }}
         />
         <strong>{settings.siteName}</strong>
       </div>
