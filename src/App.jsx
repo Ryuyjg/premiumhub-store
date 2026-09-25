@@ -544,7 +544,17 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   const [openTrendingId, setOpenTrendingId] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const activeCurr = currency || store.settings.currency;
+
+  const filteredProducts = ctx.products.filter((p) => {
+    const matchesCat = selectedCategory === "all" || p.categoryId === selectedCategory;
+    const query = searchQuery.toLowerCase().trim();
+    const matchesQuery = !query || p.name.toLowerCase().includes(query) || (p.shortDescription && p.shortDescription.toLowerCase().includes(query));
+    return matchesCat && matchesQuery;
+  });
+
   return (
     <>
       <section className="hero">
@@ -633,15 +643,77 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
           </div>
         </div>
       </div>
-      <Section title="Featured Categories" action="View categories" onAction={() => navigate("/categories")}>
-        <CategoryGrid categories={ctx.categories.filter((c) => c.featured).slice(0, 4)} navigate={navigate} />
-      </Section>
-      <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-        <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} currency={currency} />
-      </Section>
-      <Section title="All Products" action={`${ctx.products.length} Products`} onAction={() => navigate("/products")}>
-        {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} currency={currency} />}
-      </Section>
+      {ctx.activeOffers.length > 0 && (
+        <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
+          <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} currency={currency} />
+        </Section>
+      )}
+      <section className="section home-catalog-section">
+        <div className="catalog-header-bar">
+          <div className="catalog-title-group">
+            <h2>All Subscriptions</h2>
+            <p>Pick a plan, choose duration, and get instant access via WhatsApp.</p>
+          </div>
+          <div className="catalog-search-wrap">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              placeholder="Search Netflix, Spotify, ChatGPT..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="catalog-search-input"
+            />
+            {searchQuery && (
+              <button className="clear-search-btn" onClick={() => setSearchQuery("")}>✕</button>
+            )}
+          </div>
+        </div>
+
+        <div className="category-filter-chips" role="tablist" aria-label="Filter products">
+          <button
+            type="button"
+            className={selectedCategory === "all" ? "filter-chip active" : "filter-chip"}
+            onClick={() => setSelectedCategory("all")}
+          >
+            All Subscriptions <span>({ctx.products.length})</span>
+          </button>
+          {ctx.categories.map((c) => {
+            const count = ctx.products.filter((p) => p.categoryId === c.id).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                className={selectedCategory === c.id ? "filter-chip active" : "filter-chip"}
+                onClick={() => setSelectedCategory(c.id)}
+              >
+                {c.name} <span>({count})</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {isCatalogLoading ? (
+          <ProductSkeletonGrid />
+        ) : filteredProducts.length === 0 ? (
+          <div className="empty-catalog">
+            <p>No subscriptions found matching "{searchQuery}".</p>
+            <button className="ghost" onClick={() => { setSelectedCategory("all"); setSearchQuery(""); }}>
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <ProductGrid
+            products={filteredProducts}
+            ctx={ctx}
+            settings={store.settings}
+            addToCart={addToCart}
+            orderNow={orderNow}
+            navigate={navigate}
+            currency={currency}
+          />
+        )}
+      </section>
       <section className="contact-cta">
         <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
         <div className="contact-links">

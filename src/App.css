@@ -834,6 +834,169 @@ main.with-sticky-cart {
   gap: 20px;
 }
 
+/* Home Catalog Section & Modern Filter Chips */
+.home-catalog-section {
+  margin-top: 12px;
+}
+
+.catalog-header-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.catalog-title-group h2 {
+  font-size: 26px;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  color: #0B0F19;
+  margin: 0 0 4px 0;
+  font-family: var(--font-display);
+}
+
+.catalog-title-group p {
+  margin: 0;
+  color: #64748B;
+  font-size: 14px;
+}
+
+.catalog-search-wrap {
+  position: relative;
+  min-width: 260px;
+  max-width: 360px;
+  flex: 1;
+}
+
+.catalog-search-wrap .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.catalog-search-input {
+  width: 100%;
+  padding: 10px 36px 10px 38px;
+  border-radius: 999px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #0B0F19;
+  font-size: 13.5px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.catalog-search-input:focus {
+  outline: none;
+  border-color: #0B0F19;
+  box-shadow: 0 0 0 3px rgba(11, 15, 25, 0.08);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 4px 8px;
+  color: #94A3B8;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 50%;
+  min-height: unset;
+}
+
+.clear-search-btn:hover {
+  background: #F1F5F9;
+  color: #0B0F19;
+  box-shadow: none;
+  transform: translateY(-50%);
+}
+
+/* Category Filter Chips */
+.category-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 18px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  min-height: unset;
+}
+
+.filter-chip span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94A3B8;
+  transition: color 0.16s ease;
+}
+
+.filter-chip:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #0B0F19;
+  transform: translateY(-1px);
+}
+
+.filter-chip.active {
+  background: #0B0F19;
+  color: #FFFFFF;
+  border-color: #0B0F19;
+  box-shadow: 0 4px 12px rgba(11, 15, 25, 0.2);
+}
+
+.filter-chip.active span {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.empty-catalog {
+  text-align: center;
+  padding: 42px 20px;
+  background: #FFFFFF;
+  border: 1px dashed #CBD5E1;
+  border-radius: 20px;
+  margin: 12px 0 24px;
+}
+
+.empty-catalog p {
+  color: #64748B;
+  font-size: 14.5px;
+  font-weight: 500;
+  margin: 0 0 14px;
+}
+
 /* Sculpted Card Containers */
 .category-card, .product-card, .offer-card, .cart-row, .summary, .admin-editor, .login {
   background: #FFFFFF;
