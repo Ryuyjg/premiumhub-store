@@ -897,14 +897,117 @@ function OfferGrid({ offers, settings, timerTick, currency }) {
   })}</div>;
 }
 
-function Cart({ cartLines, setCart, store, currency }) {
+function Cart({ cartLines, setCart, store, currency, navigate }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const activeCurr = currency || store.settings.currency;
   const message = `${store.settings.whatsappMessage}\n\nOrder Details (${activeCurr}):\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal, activeCurr)}`).join("\n")}\n\nTotal: ${money(total, activeCurr)}\n\nPlease let me know the payment details and next steps.`;
+
+  const updateQty = (productId, variationId, nextQty, maxStock) => {
+    const validQty = Math.max(1, Math.min(Number.isFinite(maxStock) ? maxStock : Infinity, nextQty));
+    setCart((cart) =>
+      cart.map((c) =>
+        c.productId === productId && c.variationId === variationId
+          ? { ...c, quantity: validQty }
+          : c
+      )
+    );
+  };
+
+  const removeItem = (productId, variationId) => {
+    setCart((cart) => cart.filter((c) => !(c.productId === productId && c.variationId === variationId)));
+  };
+
   return (
-    <section className="section page-top cart-page"><h1>Cart</h1>
-      {!cartLines.length ? <Empty title="Your cart is empty" /> : cartLines.map((item) => <div className="cart-row" key={`${item.productId}-${item.variationId}`}><img src={item.product.image} alt={item.product.name} /><div><strong>{item.product.name}</strong><span>{item.variation.name}</span>{item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}{!item.purchasable && <small className="danger">Currently out of stock</small>}</div><b>{money(item.unitPrice, activeCurr)}</b><input type="number" min="1" max={Number.isFinite(stockLimit(item.variation)) ? stockLimit(item.variation) : undefined} value={item.quantity} onChange={(e) => setCart((cart) => cart.map((c) => c.productId === item.productId && c.variationId === item.variationId ? { ...c, quantity: Math.min(Math.max(1, Number(e.target.value) || 1), stockLimit(item.variation)) } : c))} /><strong>{money(item.lineTotal, activeCurr)}</strong><button className="text-btn" onClick={() => setCart((cart) => cart.filter((c) => !(c.productId === item.productId && c.variationId === item.variationId)))}>Remove</button></div>)}
-      {!!cartLines.length && <aside className="summary"><span>Subtotal</span><strong>{money(total, activeCurr)}</strong><span>Total</span><strong>{money(total, activeCurr)}</strong><a className={cartLines.every((i) => i.purchasable) ? "order-btn" : "order-btn disabled"} href={`https://wa.me/${store.settings.whatsappNumber}?text=${encodeURIComponent(message)}`} target="_blank">Order Now</a></aside>}
+    <section className="section page-top cart-page">
+      <div className="section-head">
+        <h1>Your Cart</h1>
+      </div>
+      {!cartLines.length ? (
+        <Empty title="Your cart is empty" action={() => navigate("/products")} />
+      ) : (
+        <div className="cart-layout">
+          <div className="cart-items-list">
+            {cartLines.map((item) => {
+              const maxStock = stockLimit(item.variation);
+              return (
+                <div className="cart-row" key={`${item.productId}-${item.variationId}`}>
+                  <img src={item.product.image} alt={item.product.name} />
+                  <div className="cart-item-info">
+                    <strong>{item.product.name}</strong>
+                    <span className="cart-item-variation">{item.variation.name}</span>
+                    {item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}
+                    {!item.purchasable && <small className="danger">Currently out of stock</small>}
+                  </div>
+
+                  <div className="cart-qty-control">
+                    <button
+                      type="button"
+                      className="qty-btn"
+                      disabled={item.quantity <= 1}
+                      onClick={() => updateQty(item.productId, item.variationId, item.quantity - 1, maxStock)}
+                    >
+                      −
+                    </button>
+                    <span className="qty-val">{item.quantity}</span>
+                    <button
+                      type="button"
+                      className="qty-btn"
+                      disabled={Number.isFinite(maxStock) && item.quantity >= maxStock}
+                      onClick={() => updateQty(item.productId, item.variationId, item.quantity + 1, maxStock)}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <div className="cart-item-pricing">
+                    <strong className="cart-item-total">{money(item.lineTotal, activeCurr)}</strong>
+                    {item.quantity > 1 && (
+                      <small className="cart-unit-hint">({money(item.unitPrice, activeCurr)} each)</small>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="cart-remove-btn"
+                    title="Remove item"
+                    onClick={() => removeItem(item.productId, item.variationId)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <aside className="summary cart-summary-card">
+            <h3>Order Summary</h3>
+            <div className="summary-line">
+              <span>Items ({cartLines.reduce((s, i) => s + i.quantity, 0)})</span>
+              <strong>{money(total, activeCurr)}</strong>
+            </div>
+            <div className="summary-line">
+              <span>Delivery</span>
+              <span className="free-badge">Instant (WhatsApp)</span>
+            </div>
+            <hr className="summary-divider" />
+            <div className="summary-line total-line">
+              <span>Total</span>
+              <strong>{money(total, activeCurr)}</strong>
+            </div>
+            <a
+              className={cartLines.every((i) => i.purchasable) ? "order-btn full-btn" : "order-btn full-btn disabled"}
+              href={`https://wa.me/${store.settings.whatsappNumber}?text=${encodeURIComponent(message)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Order on WhatsApp →
+            </a>
+            <p className="summary-guarantee">
+              🛡️ 100% Replacement Warranty • Fast Delivery
+            </p>
+          </aside>
+        </div>
+      )}
     </section>
   );
 }
