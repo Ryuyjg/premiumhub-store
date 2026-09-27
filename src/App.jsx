@@ -5,18 +5,10 @@ import "./App.css";
 
 const STORE_KEY = "premium-hub-store-v2";
 const CART_KEY = "premium-hub-cart-v1";
-const CURRENCY_KEY = "premium-hub-currency-v1";
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const money = (value, currency = "INR") => {
-  const num = Number(value || 0);
-  if (currency === "USD" || currency === "$") {
-    const formatted = Number.isInteger(num) ? num.toString() : num.toFixed(2);
-    return `$${formatted}`;
-  }
-  return `₹${num.toLocaleString("en-IN")}`;
-};
+const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const stockNumber = (item) => Number(item?.stock ?? item?.stockQty ?? 0);
 const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !== undefined;
 const stockLimit = (item) => hasCustomStock(item) ? Math.max(0, stockNumber(item)) : Infinity;
@@ -134,31 +126,14 @@ function App() {
     return () => clearInterval(timer);
   }, []);
 
-  const [currency, setCurrencyState] = useState(() => {
+  useEffect(() => {
     try {
-      return localStorage.getItem(CURRENCY_KEY) || "INR";
-    } catch {
-      return "INR";
-    }
-  });
-  const [showCurrencyModal, setShowCurrencyModal] = useState(() => {
-    try {
-      return !localStorage.getItem(CURRENCY_KEY);
-    } catch {
-      return false;
-    }
-  });
-
-  const setCurrency = (c) => {
-    setCurrencyState(c);
-    try {
-      localStorage.setItem(CURRENCY_KEY, c);
+      localStorage.removeItem("premium-hub-currency-v1");
     } catch {}
-    setShowCurrencyModal(false);
-  };
+  }, []);
 
-  const ctx = useMemo(() => buildContext(store, currency), [store, currency]);
-  const cartLines = useMemo(() => hydrateCart(cart, ctx, currency), [cart, ctx, currency]);
+  const ctx = useMemo(() => buildContext(store), [store]);
+  const cartLines = useMemo(() => hydrateCart(cart, ctx), [cart, ctx]);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const showStickyCart = cartCount > 0 && !route.startsWith("/cart") && !route.startsWith("/admin");
@@ -198,8 +173,8 @@ function App() {
     const price = unitPrice === undefined ? variation.price : Number(unitPrice);
     setCart((items) => {
       const found = items.find((item) => item.productId === productId && item.variationId === variationId);
-      if (found) return items.map((item) => item === found ? { ...item, quantity: Math.min(maxStock, item.quantity + quantity), unitPrice: unitPrice === undefined ? item.unitPrice : price, currency } : item);
-      return [...items, { productId, variationId, quantity: Math.min(maxStock, Math.max(1, quantity)), unitPrice: price, currency }];
+      if (found) return items.map((item) => item === found ? { ...item, quantity: Math.min(maxStock, item.quantity + quantity), unitPrice: unitPrice === undefined ? item.unitPrice : price } : item);
+      return [...items, { productId, variationId, quantity: Math.min(maxStock, Math.max(1, quantity)), unitPrice: price }];
     });
     setNotice(`${product.name} (${variation.name}) added to cart`);
     return true;
@@ -221,13 +196,10 @@ function App() {
     }
   };
 
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading, currency, setCurrency };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
   return (
     <div>
-      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} currency={currency} setCurrency={setCurrency} />
-      {showCurrencyModal && !route.startsWith("/admin") && (
-        <CurrencySelectModal onSelect={setCurrency} onClose={() => setShowCurrencyModal(false)} />
-      )}
+      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
       {notice && <div className="toast" role="status">{notice}</div>}
       <main className={showStickyCart ? "with-sticky-cart" : ""}>
         <RouteErrorBoundary key={route}>
@@ -241,9 +213,9 @@ function App() {
         </RouteErrorBoundary>
       </main>
       {showStickyCart && (
-        <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} currency={currency} navigate={navigate} />
+        <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} navigate={navigate} />
       )}
-      {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} currency={currency} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
+      {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
   );
@@ -280,30 +252,11 @@ function parseDateBoundary(dateStr, isEnd = false) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function buildContext(store, activeCurrency = "INR") {
+function buildContext(store) {
   const now = new Date();
-  const isUsd = activeCurrency === "USD";
   const categories = [...store.categories].filter((c) => c.active).sort((a, b) => a.order - b.order);
-  const rawProducts = [...store.products].filter((p) => p.active && categories.some((c) => c.id === p.categoryId));
-  const products = rawProducts
-    .map((p) => {
-      if (!isUsd) return p;
-      const usdVariations = (p.variations || [])
-        .filter((v) => !isBlank(v.priceUsd) && Number(v.priceUsd) > 0)
-        .map((v) => ({
-          ...v,
-          price: Number(v.priceUsd),
-          originalPrice: !isBlank(v.originalPriceUsd) ? Number(v.originalPriceUsd) : "",
-        }));
-      if (!usdVariations.length) return null;
-      return {
-        ...p,
-        variations: usdVariations,
-        stock: usdVariations.reduce((sum, v) => sum + (v.inStock ? stockNumber(v) : 0), 0),
-        inStock: usdVariations.some((v) => v.inStock && stockNumber(v) > 0),
-      };
-    })
-    .filter(Boolean)
+  const products = [...store.products]
+    .filter((p) => p.active && categories.some((c) => c.id === p.categoryId))
     .sort((a, b) => {
       const aInStock = hasAvailableVariation(a);
       const bInStock = hasAvailableVariation(b);
@@ -311,37 +264,25 @@ function buildContext(store, activeCurrency = "INR") {
       return (a.order || 0) - (b.order || 0);
     });
 
-  const activeOffers = store.offers
-    .filter((offer) => {
-      if (!offer.active) return false;
-      const start = parseDateBoundary(offer.startDate, false);
-      const end = parseDateBoundary(offer.endDate, true);
-      if (start && start > now) return false;
-      if (end && end < now) return false;
-      if (isUsd) {
-        return !isBlank(offer.priceUsd) && Number(offer.priceUsd) > 0;
-      }
-      return true;
-    })
-    .map((offer) => {
-      if (isUsd) {
-        return {
-          ...offer,
-          price: Number(offer.priceUsd),
-          originalPrice: !isBlank(offer.originalPriceUsd) ? Number(offer.originalPriceUsd) : "",
-        };
-      }
-      return offer;
-    });
+  const activeOffers = store.offers.filter((offer) => {
+    if (!offer.active) return false;
+    const start = parseDateBoundary(offer.startDate, false);
+    const end = parseDateBoundary(offer.endDate, true);
+    if (start && start > now) return false;
+    if (end && end < now) return false;
+    return true;
+  });
 
   return {
-    categories, products, activeOffers,
+    categories,
+    products,
+    activeOffers,
     categoryById: Object.fromEntries(categories.map((c) => [c.id, c])),
     productById: Object.fromEntries(products.map((p) => [p.id, p])),
   };
 }
 
-function hydrateCart(cart, ctx, activeCurrency = "INR") {
+function hydrateCart(cart, ctx) {
   return cart.map((item) => {
     const product = ctx.productById[item.productId];
     const variation = product?.variations.find((v) => v.id === item.variationId);
@@ -354,7 +295,6 @@ function hydrateCart(cart, ctx, activeCurrency = "INR") {
       unitPrice,
       product,
       variation,
-      currency: activeCurrency,
       lineTotal: unitPrice * quantity,
       purchasable: product.active && isAvailable(variation) && quantity <= stockLimit(variation)
     };
@@ -407,71 +347,7 @@ function FloatingLogos() {
   );
 }
 
-function CurrencyToggle({ currency, setCurrency }) {
-  return (
-    <div className="currency-toggle" role="group" aria-label="Select currency">
-      <button
-        type="button"
-        className={currency === "INR" ? "active" : ""}
-        onClick={() => setCurrency("INR")}
-        title="Browse in Indian Rupee (₹)"
-      >
-        ₹ INR
-      </button>
-      <button
-        type="button"
-        className={currency === "USD" ? "active" : ""}
-        onClick={() => setCurrency("USD")}
-        title="Browse in US Dollar ($)"
-      >
-        $ USD
-      </button>
-    </div>
-  );
-}
-
-function CurrencySelectModal({ onSelect, onClose }) {
-  return (
-    <div className="currency-modal-backdrop" role="dialog" aria-modal="true" aria-label="Choose currency">
-      <div className="currency-modal-card">
-        <div className="currency-modal-header">
-          <span className="currency-modal-icon">🌐</span>
-          <h2>Select Your Currency</h2>
-          <p>Please select your preferred currency for browsing products and placing orders:</p>
-        </div>
-        <div className="currency-modal-options">
-          <button
-            type="button"
-            className="currency-modal-opt"
-            onClick={() => onSelect("INR")}
-          >
-            <span className="currency-flag">🇮🇳</span>
-            <div className="currency-opt-info">
-              <strong>Indian Rupee (₹ INR)</strong>
-              <span>UPI, Google Pay, PhonePe, Paytm & Cards</span>
-            </div>
-            <span className="currency-arrow">→</span>
-          </button>
-          <button
-            type="button"
-            className="currency-modal-opt"
-            onClick={() => onSelect("USD")}
-          >
-            <span className="currency-flag">🇺🇸</span>
-            <div className="currency-opt-info">
-              <strong>US Dollar ($ USD)</strong>
-              <span>International Cards, Global PayPal & Transfers</span>
-            </div>
-            <span className="currency-arrow">→</span>
-          </button>
-        </div>
-        <p className="currency-modal-note">You can change your currency at any time from the top header.</p>
-      </div>
-    </div>
-  );
-}
-
-function Header({ settings, cartCount, navigate, route, currency, setCurrency }) {
+function Header({ settings, cartCount, navigate, route }) {
   const isAdminRoute = route.startsWith("/admin");
   const go = (path) => {
     navigate(path);
@@ -498,17 +374,9 @@ function Header({ settings, cartCount, navigate, route, currency, setCurrency })
           {!isAdminRoute && <FloatingLogos />}
         </div>
         {!isAdminRoute && (
-          <div className="header-nav-wrap">
-            <CurrencyToggle currency={currency} setCurrency={setCurrency} />
-            <nav className="site-nav desktop-only">{nav}</nav>
-          </div>
+          <nav className="site-nav desktop-only">{nav}</nav>
         )}
       </header>
-      {!isAdminRoute && (
-        <div className="mobile-header-bar mobile-only">
-          <CurrencyToggle currency={currency} setCurrency={setCurrency} />
-        </div>
-      )}
       {!isAdminRoute && (
         <nav className="site-nav mobile-only">{nav}</nav>
       )}
@@ -529,24 +397,23 @@ function NavButtons({ cartCount, route, go }) {
   );
 }
 
-function StickyCartButton({ count, total, settings, currency, navigate }) {
+function StickyCartButton({ count, total, settings, navigate }) {
   const label = count === 1 ? "1 Item" : `${count} Items`;
   return (
     <button className="sticky-cart-cta" onClick={() => navigate("/cart")}>
       <span>View Cart</span>
       <b>{label}</b>
-      <strong>{money(total, currency || settings.currency)}</strong>
+      <strong>{money(total)}</strong>
     </button>
   );
 }
 
-function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogLoading, currency }) {
+function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogLoading }) {
   const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
   const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
   const [openTrendingId, setOpenTrendingId] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const activeCurr = currency || store.settings.currency;
 
   const filteredProducts = ctx.products.filter((p) => {
     const matchesCat = selectedCategory === "all" || p.categoryId === selectedCategory;
@@ -582,7 +449,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
                     <img src={product.image} alt={`${product.name} logo`} loading="eager" fetchPriority="high" decoding="async" />
                     <span>
                       <b>{product.name}</b>
-                      <small>{first ? `From ${money(first.price, activeCurr)}` : `From ${money(0, activeCurr)}`}</small>
+                      <small>{first ? `From ${money(first.price)}` : `From ${money(0)}`}</small>
                     </span>
                   </button>
                   {open && (
@@ -594,7 +461,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
                             <div>
                               <b>{variation.name}</b>
                               {variation.shortDescription && <span>{variation.shortDescription}</span>}
-                              <small>{money(variation.price, activeCurr)}</small>
+                              <small>{money(variation.price)}</small>
                             </div>
                             {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
                           </div>
@@ -645,7 +512,7 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
       </div>
       {ctx.activeOffers.length > 0 && (
         <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-          <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} currency={currency} />
+          <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} />
         </Section>
       )}
       <section className="section home-catalog-section">
@@ -710,7 +577,6 @@ function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogL
             addToCart={addToCart}
             orderNow={orderNow}
             navigate={navigate}
-            currency={currency}
           />
         )}
       </section>
@@ -733,16 +599,15 @@ function CategoryGrid({ categories, navigate }) {
   return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} loading="lazy" decoding="async" /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
 
-function ProductGrid({ products, ctx, settings, addToCart, orderNow, navigate, currency }) {
-  return <div className="product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} settings={settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} currency={currency} />)}</div>;
+function ProductGrid({ products, ctx, settings, addToCart, orderNow, navigate }) {
+  return <div className="product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} settings={settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />)}</div>;
 }
 
-function ProductCard({ product, category, settings, orderNow, navigate, currency }) {
+function ProductCard({ product, category, settings, orderNow, navigate }) {
   const available = availableVariations(product);
   const first = available[0];
   const priceFrom = lowestVariation(product);
   const disabled = !product.active || !first;
-  const activeCurr = currency || settings.currency;
   return (
     <article className="product-card">
       <div className="image-wrap">
@@ -750,15 +615,14 @@ function ProductCard({ product, category, settings, orderNow, navigate, currency
         {disabled && <span className="stock-badge">Stock Out</span>}
       </div>
       <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
-      <div className="card-foot"><strong>{priceFrom ? `From ${money(priceFrom.price, activeCurr)}` : `From ${money(0, activeCurr)}`}</strong><span className={disabled ? "stock out" : "stock"}>{productStockText(product)}</span></div>
+      <div className="card-foot"><strong>{priceFrom ? `From ${money(priceFrom.price)}` : `From ${money(0)}`}</strong><span className={disabled ? "stock out" : "stock"}>{productStockText(product)}</span></div>
       <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={() => orderNow(product.id)}>Order Now</button></div>
     </article>
   );
 }
 
-function OrderSheet({ product, settings, onClose, onOrder, navigate, currency }) {
+function OrderSheet({ product, settings, onClose, onOrder, navigate }) {
   if (!product) return null;
-  const activeCurr = currency || settings.currency;
   return (
     <div className="sheet-backdrop" role="presentation" onClick={onClose}>
       <section className="order-sheet" role="dialog" aria-modal="true" aria-label={`Choose ${product.name} plan`} onClick={(event) => event.stopPropagation()}>
@@ -779,7 +643,7 @@ function OrderSheet({ product, settings, onClose, onOrder, navigate, currency })
                   {variation.shortDescription && <small>{variation.shortDescription}</small>}
                   {!variation.shortDescription && <small>{stockText(variation)}</small>}
                 </div>
-                <strong>{money(variation.price, activeCurr)}</strong>
+                <strong>{money(variation.price)}</strong>
                 {stocked ? <button onClick={() => onOrder(product.id, variation.id)}>Order Now</button> : <em>Stock Out</em>}
               </div>
             );
@@ -791,21 +655,21 @@ function OrderSheet({ product, settings, onClose, onOrder, navigate, currency })
   );
 }
 
-function Products({ store, ctx, slug, addToCart, orderNow, navigate, isCatalogLoading, currency }) {
+function Products({ store, ctx, slug, addToCart, orderNow, navigate, isCatalogLoading }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  if (slug) return <ProductDetails product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} currency={currency} />;
+  if (slug) return <ProductDetails product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />;
   const filtered = ctx.products.filter((p) => (category === "all" || p.categoryId === category) && p.name.toLowerCase().includes(query.toLowerCase()));
   return (
     <section className="section page-top">
       <div className="section-head"><h1>Products</h1></div>
       <div className="filters"><input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="all">All categories</option>{ctx.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} currency={currency} />}
+      {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
     </section>
   );
 }
 
-function ProductDetails({ product, ctx, settings, addToCart, navigate, currency }) {
+function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
   const [variationId, setVariationId] = useState(product?.variations.find((v) => isAvailable(v))?.id || product?.variations[0]?.id);
   const [quantity, setQuantity] = useState(1);
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
@@ -813,7 +677,6 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate, currency 
   const canBuy = product.active && isAvailable(selected);
   const maxQuantity = stockLimit(selected);
   const buy = () => { if (addToCart(product.id, selected.id, quantity)) navigate("/cart"); };
-  const activeCurr = currency || settings.currency;
   return (
     <section className="detail page-top">
       <div className="detail-image image-wrap">
@@ -836,7 +699,7 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate, currency 
                 {v.shortDescription && <small className="plan-desc">{v.shortDescription}</small>}
               </div>
               <div className="plan-pricing">
-                <strong>{money(v.price, activeCurr)}</strong>
+                <strong>{money(v.price)}</strong>
                 <span className={stocked ? "plan-stock" : "plan-stock out"}>{stockText(v)}</span>
               </div>
             </button>
@@ -849,14 +712,14 @@ function ProductDetails({ product, ctx, settings, addToCart, navigate, currency 
   );
 }
 
-function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalogLoading, currency }) {
+function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalogLoading }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
-  if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} currency={currency} />}</section>;
+  if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}</section>;
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
-function Offers({ ctx, store, timerTick, isCatalogLoading, currency }) {
-  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} currency={currency} />}</section>;
+function Offers({ ctx, store, timerTick, isCatalogLoading }) {
+  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} />}</section>;
 }
 
 function ProductSkeletonGrid() {
@@ -865,14 +728,13 @@ function ProductSkeletonGrid() {
 
 // Urgency timer: always cycles 15 min (900 seconds) regardless of offer end date
 const URGENCY_CYCLE = 900;
-function OfferGrid({ offers, settings, timerTick, currency }) {
-  if (!offers.length) return <p className="muted">{currency === "USD" ? "No active offers available in USD right now." : "No active offers right now."}</p>;
+function OfferGrid({ offers, settings, timerTick }) {
+  if (!offers.length) return <p className="muted">No active offers right now.</p>;
   // urgency: always count down from 15 min, cycling
   const urgencySeconds = URGENCY_CYCLE - (Math.floor(timerTick / 1000) % URGENCY_CYCLE);
-  const activeCurr = currency || settings.currency;
   return <div className="offer-grid">{offers.map((offer) => {
     const image = offer.image || logo("DEAL", "#166834");
-    const waText = encodeURIComponent(`Hi PremiumHub! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price, activeCurr)} Combo Offer. Please Let Me Know the Payment Method.`);
+    const waText = encodeURIComponent(`Hi PremiumHub! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price)} Combo Offer. Please Let Me Know the Payment Method.`);
     const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${waText}`;
     return (
       <article className="offer-card" key={offer.id}>
@@ -888,7 +750,7 @@ function OfferGrid({ offers, settings, timerTick, currency }) {
           {offer.itemName && <p className="offer-item-name">{offer.itemName}</p>}
           <p>{offer.description}</p>
           <div className="offer-card-foot">
-            <strong>{money(offer.price, activeCurr)} <s>{offer.originalPrice ? money(offer.originalPrice, activeCurr) : ""}</s></strong>
+            <strong>{money(offer.price)} <s>{offer.originalPrice ? money(offer.originalPrice) : ""}</s></strong>
             <a className="offer-order-btn" href={waUrl} target="_blank" rel="noopener noreferrer">Order Now</a>
           </div>
         </div>
@@ -897,10 +759,9 @@ function OfferGrid({ offers, settings, timerTick, currency }) {
   })}</div>;
 }
 
-function Cart({ cartLines, setCart, store, currency, navigate }) {
+function Cart({ cartLines, setCart, store, navigate }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
-  const activeCurr = currency || store.settings.currency;
-  const message = `${store.settings.whatsappMessage}\n\nOrder Details (${activeCurr}):\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal, activeCurr)}`).join("\n")}\n\nTotal: ${money(total, activeCurr)}\n\nPlease let me know the payment details and next steps.`;
+  const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
   const updateQty = (productId, variationId, nextQty, maxStock) => {
     const validQty = Math.max(1, Math.min(Number.isFinite(maxStock) ? maxStock : Infinity, nextQty));
@@ -960,9 +821,9 @@ function Cart({ cartLines, setCart, store, currency, navigate }) {
                   </div>
 
                   <div className="cart-item-pricing">
-                    <strong className="cart-item-total">{money(item.lineTotal, activeCurr)}</strong>
+                    <strong className="cart-item-total">{money(item.lineTotal)}</strong>
                     {item.quantity > 1 && (
-                      <small className="cart-unit-hint">({money(item.unitPrice, activeCurr)} each)</small>
+                      <small className="cart-unit-hint">({money(item.unitPrice)} each)</small>
                     )}
                   </div>
 
@@ -983,7 +844,7 @@ function Cart({ cartLines, setCart, store, currency, navigate }) {
             <h3>Order Summary</h3>
             <div className="summary-line">
               <span>Items ({cartLines.reduce((s, i) => s + i.quantity, 0)})</span>
-              <strong>{money(total, activeCurr)}</strong>
+              <strong>{money(total)}</strong>
             </div>
             <div className="summary-line">
               <span>Delivery</span>
@@ -992,7 +853,7 @@ function Cart({ cartLines, setCart, store, currency, navigate }) {
             <hr className="summary-divider" />
             <div className="summary-line total-line">
               <span>Total</span>
-              <strong>{money(total, activeCurr)}</strong>
+              <strong>{money(total)}</strong>
             </div>
             <a
               className={cartLines.every((i) => i.purchasable) ? "order-btn full-btn" : "order-btn full-btn disabled"}
@@ -1054,7 +915,7 @@ function Login({ onLogin }) {
 }
 
 function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
-  const makeDefaultVar = (pid = "var") => ({ id: uid(pid), name: "1 Month", price: "", originalPrice: "", priceUsd: "", originalPriceUsd: "", shortDescription: "", stock: 10, inStock: true, sku: "", order: 1 });
+  const makeDefaultVar = (pid = "var") => ({ id: uid(pid), name: "1 Month", price: "", originalPrice: "", shortDescription: "", stock: 10, inStock: true, sku: "", order: 1 });
   const blank = { id: uid("product"), name: "", slug: "", categoryId: store.categories[0]?.id || "", image: logo("NEW", "#334155"), shortDescription: "", description: "", features: [], active: true, inStock: true, stock: 10, featured: false, order: store.products.length + 1, variations: [makeDefaultVar()] };
   const [draft, setDraft] = useState(blank);
 
@@ -1087,15 +948,11 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
     const variations = draft.variations.map((variation, index) => {
       const variationStock = Math.max(0, Number(variation.stock) || (variation.inStock !== false ? 10 : 0));
       const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
-      const priceUsd = isBlank(variation.priceUsd) ? "" : Number(variation.priceUsd);
-      const originalPriceUsd = isBlank(variation.originalPriceUsd) ? "" : Number(variation.originalPriceUsd);
       return {
         ...variation,
         name: variation.name || `Plan ${index + 1}`,
         price: Number(variation.price),
         originalPrice,
-        priceUsd,
-        originalPriceUsd,
         stock: variationStock,
         inStock: variation.inStock !== false && variationStock > 0,
       };
@@ -1122,10 +979,10 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       "✕ Failed to save product. Please try again."
     );
   };
-  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product"), variations: [makeDefaultVar()] })} list={store.products} pick={pickProduct} activeId={draft.id} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} currency={store.settings.currency} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
+  return <Editor title="Product Management" onNew={() => setDraft({ ...blank, id: uid("product"), variations: [makeDefaultVar()] })} list={store.products} pick={pickProduct} activeId={draft.id} draft={<ProductForm draft={draft} setDraft={setDraft} categories={store.categories} />} save={save} remove={() => updateStore((s) => ({ ...s, products: s.products.filter((p) => p.id !== draft.id) }), "✓ Product deleted successfully", "✕ Failed to delete product. Please try again.")} saveStatus={saveStatus} />;
 }
 
-function ProductForm({ draft, setDraft, categories, currency }) {
+function ProductForm({ draft, setDraft, categories }) {
   const patch = (key, value) => setDraft({ ...draft, [key]: value });
   return (
     <div className="form-grid product-form">
@@ -1156,7 +1013,7 @@ function ProductForm({ draft, setDraft, categories, currency }) {
             <p>Set selling price, MRP, and stock availability for each plan.</p>
           </div>
         </div>
-        <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} currency={currency} />
+        <VariationEditor variations={draft.variations} setVariations={(variations) => patch("variations", variations)} productId={draft.id} />
       </section>
       <section className="form-section">
         <div className="form-section-head">
@@ -1178,7 +1035,7 @@ function ProductForm({ draft, setDraft, categories, currency }) {
   );
 }
 
-function VariationEditor({ variations, setVariations, productId, currency }) {
+function VariationEditor({ variations, setVariations, productId }) {
   const set = (id, key, value) => setVariations(variations.map((v) => (v.id === id ? { ...v, [key]: value } : v)));
   const setStock = (id, value) => {
     setVariations(variations.map((v) => (v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v)));
@@ -1191,8 +1048,6 @@ function VariationEditor({ variations, setVariations, productId, currency }) {
         name: variations.length === 0 ? "1 Month" : `${variations.length + 1} Months`,
         price: "",
         originalPrice: "",
-        priceUsd: "",
-        originalPriceUsd: "",
         shortDescription: "",
         stock: 10,
         inStock: true,
@@ -1220,15 +1075,12 @@ function VariationEditor({ variations, setVariations, productId, currency }) {
           <summary>
             <span className="variation-name">Plan #{index + 1}: {v.name || "New plan"}</span>
             <span style={{ color: isBlank(v.price) ? "#FF6B6B" : "inherit" }}>₹: {isBlank(v.price) ? "⚠️ Required" : `₹${v.price}`}</span>
-            <span style={{ color: isBlank(v.priceUsd) ? "#64748b" : "#059669", fontWeight: isBlank(v.priceUsd) ? 400 : 700 }}>$: {isBlank(v.priceUsd) ? "No USD Price" : `$${v.priceUsd}`}</span>
             <span className={isAvailable(v) ? "stock-dot" : "stock-dot out"}>{isAvailable(v) ? `In Stock (${stockNumber(v)})` : "Stock Out"}</span>
           </summary>
           <div className="variation-row">
             <label>Plan duration / name *<input value={v.name} onChange={(e) => set(v.id, "name", e.target.value)} placeholder="e.g. 1 Month, 1 Year" required /></label>
             <label>Selling price (₹ INR) *<input type="number" min="0" value={v.price ?? ""} onChange={(e) => set(v.id, "price", e.target.value)} placeholder="e.g. 199" required /></label>
             <label>Original / MRP price (₹ INR)<input type="number" min="0" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="e.g. 399" /></label>
-            <label>Selling price ($ USD)<input type="number" min="0" step="any" value={v.priceUsd ?? ""} onChange={(e) => set(v.id, "priceUsd", e.target.value)} placeholder="e.g. 4" /><small style={{ color: "#64748b", fontSize: "11px" }}>Leave blank to hide in USD store</small></label>
-            <label>Original price ($ USD)<input type="number" min="0" step="any" value={v.originalPriceUsd ?? ""} onChange={(e) => set(v.id, "originalPriceUsd", e.target.value)} placeholder="e.g. 7" /></label>
             <label>Plan note<input value={v.shortDescription || ""} onChange={(e) => set(v.id, "shortDescription", e.target.value)} placeholder="e.g. Private account • 25 days" /></label>
             <label>Stock qty<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="10" /></label>
             <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
@@ -1270,7 +1122,7 @@ function CategoryAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
 }
 
 function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
-  const blank = { id: uid("offer"), title: "", itemName: "", price: "", originalPrice: "", priceUsd: "", originalPriceUsd: "", description: "", startDate: "", endDate: "", active: true, image: "" };
+  const blank = { id: uid("offer"), title: "", itemName: "", price: "", originalPrice: "", description: "", startDate: "", endDate: "", active: true, image: "" };
   const [draft, setDraft] = useState(blank);
   const save = () => {
     if (draft.price === "" || draft.price === null || draft.price === undefined) {
@@ -1281,8 +1133,6 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       ...draft,
       price: Number(draft.price),
       originalPrice: draft.originalPrice === "" || draft.originalPrice === null || draft.originalPrice === undefined ? "" : Number(draft.originalPrice),
-      priceUsd: draft.priceUsd === "" || draft.priceUsd === null || draft.priceUsd === undefined ? "" : Number(draft.priceUsd),
-      originalPriceUsd: draft.originalPriceUsd === "" || draft.originalPriceUsd === null || draft.originalPriceUsd === undefined ? "" : Number(draft.originalPriceUsd),
     };
     updateStore((s) => ({ ...s, offers: [...s.offers.filter((o) => o.id !== draft.id), offer] }), "✓ Offer saved successfully", "✕ Failed to save offer. Please try again.");
   };
@@ -1293,10 +1143,6 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
         <label>Selling price (₹ INR) *<input type="number" value={draft.price ?? ""} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="e.g. 149" /></label>
         <label>Original price (₹ INR)<input type="number" value={draft.originalPrice ?? ""} onChange={(e) => setDraft({ ...draft, originalPrice: e.target.value })} placeholder="e.g. 499" /></label>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-        <label>Selling price ($ USD)<input type="number" step="any" value={draft.priceUsd ?? ""} onChange={(e) => setDraft({ ...draft, priceUsd: e.target.value })} placeholder="e.g. 4" /><small style={{ color: "#64748b", fontSize: "11px" }}>Leave blank to hide in USD store</small></label>
-        <label>Original price ($ USD)<input type="number" step="any" value={draft.originalPriceUsd ?? ""} onChange={(e) => setDraft({ ...draft, originalPriceUsd: e.target.value })} placeholder="e.g. 8" /></label>
       </div>
       <label>Description<textarea value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="Short description of this offer" /></label>
       <label>Start date<input type="date" value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} /></label>
