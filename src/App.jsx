@@ -1,30 +1,17 @@
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState } from "react";
 import { logo, seedData } from "./storeData";
-import { BRAND_LOGOS_DATA } from "./brandLogos";
 import "./App.css";
+import { Catalog, StoreHeader, StoreHome, StoreOffers, StoreProductCard } from "./Storefront";
+import { money, stockNumber, stockLimit, isAvailable, stockText, availableVariations, hasAvailableVariation, whatsappUrl } from "./storefrontUtils";
 
 const STORE_KEY = "premium-hub-store-v2";
 const CART_KEY = "premium-hub-cart-v1";
 
 const uid = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
-const stockNumber = (item) => Number(item?.stock ?? item?.stockQty ?? 0);
-const hasCustomStock = (item) => item?.stock !== undefined || item?.stockQty !== undefined;
-const stockLimit = (item) => hasCustomStock(item) ? Math.max(0, stockNumber(item)) : Infinity;
-const isAvailable = (item) => Boolean(item?.inStock) && (!hasCustomStock(item) || stockNumber(item) > 0);
-const stockText = (item) => isAvailable(item) ? (hasCustomStock(item) ? `${stockNumber(item)} in stock` : "In Stock") : "Stock Out";
 const isBlank = (value) => value === "" || value === null || value === undefined;
-const availableVariations = (product) => product?.variations?.filter((variation) => isAvailable(variation)) || [];
-const hasAvailableVariation = (product) => availableVariations(product).length > 0;
-const lowestVariation = (product) => {
-  const variations = product?.variations?.filter((variation) => !isBlank(variation.price)) || [];
-  return variations.sort((a, b) => Number(a.price) - Number(b.price))[0];
-};
 const productStockText = (product) => hasAvailableVariation(product) ? "In Stock" : "Stock Out";
 const whatsappGroupUrl = (settings) => settings.whatsappGroupLink?.trim();
-const twoDigits = (value) => String(value).padStart(2, "0");
-const formatOfferTimer = (seconds) => `${twoDigits(Math.floor(seconds / 60))}:${twoDigits(seconds % 60)}`;
 const setSavedStore = (data) => {
   try {
     // Store with a timestamp so we know when admin last saved locally
@@ -34,21 +21,22 @@ const setSavedStore = (data) => {
   }
 };
 
-function getLocalSavedAt() {
+function loadCart() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return 0;
-    return JSON.parse(raw)._savedAt || 0;
-  } catch { return 0; }
+    const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    return Array.isArray(saved) ? saved.filter(item => item && typeof item.productId === "string" && typeof item.variationId === "string" && Number.isFinite(Number(item.quantity)) && Number(item.quantity) >= 1).map(item => ({ ...item, quantity: Math.floor(Number(item.quantity)) })) : [];
+  } catch {
+    return [];
+  }
 }
 
 function loadStore() {
   try {
     localStorage.removeItem("premium-hub-store-v1");
   } catch {}
-  const saved = localStorage.getItem(STORE_KEY);
-  if (!saved) return seedData;
   try {
+    const saved = localStorage.getItem(STORE_KEY);
+    if (!saved) return seedData;
     const { _savedAt, ...parsed } = JSON.parse(saved);
     if (!Array.isArray(parsed.categories) || !Array.isArray(parsed.products) || !Array.isArray(parsed.offers)) return seedData;
     const settings = { ...seedData.settings, ...parsed.settings };
@@ -72,7 +60,7 @@ function currentRoute() {
 
 function App() {
   const [store, setStore] = useState(loadStore);
-  const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem(CART_KEY) || "[]"));
+  const [cart, setCart] = useState(loadCart);
   const [route, setRoute] = useState(currentRoute);
   const [adminAuthed, setAdminAuthed] = useState(false);
   const [notice, setNotice] = useState("");
@@ -80,9 +68,9 @@ function App() {
   const [saveStatus, setSaveStatus] = useState("");
   const [orderProductId, setOrderProductId] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
-  const isCatalogLoading = dataStatus === "Loading catalog..." && (!store?.products?.length || !store?.offers?.length);
+  const isCatalogLoading = dataStatus === "Loading catalog...";
 
-  useEffect(() => localStorage.setItem(CART_KEY, JSON.stringify(cart)), [cart]);
+  useEffect(() => { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {} }, [cart]);
   useEffect(() => {
     fetch(`/api/catalog?_t=${Date.now()}`, { cache: "no-store" })
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
@@ -122,7 +110,7 @@ function App() {
     return () => removeEventListener("popstate", onPop);
   }, []);
   useEffect(() => {
-    const timer = setInterval(() => setTimerTick(Date.now()), 1000);
+    const timer = setInterval(() => setTimerTick(Date.now()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -132,9 +120,9 @@ function App() {
     } catch {}
   }, []);
 
-  const ctx = useMemo(() => buildContext(store), [store]);
+  const ctx = useMemo(() => buildContext(store, timerTick), [store, timerTick]);
   const cartLines = useMemo(() => hydrateCart(cart, ctx), [cart, ctx]);
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartCount = cartLines.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const showStickyCart = cartCount > 0 && !route.startsWith("/cart") && !route.startsWith("/admin");
   const navigate = (path) => {
@@ -142,7 +130,7 @@ function App() {
     setRoute(path);
     scrollTo({ top: 0, behavior: "smooth" });
   };
-  const updateStore = async (next, successMessage = "✓ Changes saved successfully", errorMessage = "✕ Failed to save changes. Please try again.") => {
+  const updateStore = async (next, successMessage = "✓ Changes saved successfully", _errorMessage = "✕ Failed to save changes. Please try again.") => {
     const updated = typeof next === "function" ? next(store) : next;
     setSaveStatus("Saving...");
     // Always apply changes to state and localStorage immediately — never revert
@@ -198,7 +186,7 @@ function App() {
 
   const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
   return (
-    <div>
+    <div className={route.startsWith("/admin") ? "admin-app" : "storefront"}>
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
       {notice && <div className="toast" role="status">{notice}</div>}
       <main className={showStickyCart ? "with-sticky-cart" : ""}>
@@ -252,8 +240,8 @@ function parseDateBoundary(dateStr, isEnd = false) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function buildContext(store) {
-  const now = new Date();
+function buildContext(store, timestamp) {
+  const now = new Date(timestamp);
   const categories = [...store.categories].filter((c) => c.active).sort((a, b) => a.order - b.order);
   const products = [...store.products]
     .filter((p) => p.active && categories.some((c) => c.id === p.categoryId))
@@ -301,103 +289,12 @@ function hydrateCart(cart, ctx) {
   }).filter(Boolean);
 }
 
-function FloatingLogos() {
-  const logos = useMemo(() => {
-    const items = BRAND_LOGOS_DATA.map((b) => {
-      const isWhite = b.color.toUpperCase() === "#FFFFFF" || b.color.toUpperCase() === "#FFF";
-      const iconColor = isWhite ? "#0F172A" : b.color;
-      const hex = iconColor.replace("#", "");
-      const r = parseInt(hex.substring(0, 2), 16) || 15;
-      const g = parseInt(hex.substring(2, 4), 16) || 23;
-      const bl = parseInt(hex.substring(4, 6), 16) || 42;
-      const alpha = (a) => `rgba(${r},${g},${bl},${a})`;
-      return {
-        id: b.id,
-        name: b.name,
-        bg: alpha(0.06),
-        border: alpha(0.18),
-        glow: alpha(0.08),
-        icon: typeof b.path === "string" && b.path.startsWith("<svg") ? (
-          <span className="custom-svg-wrapper" dangerouslySetInnerHTML={{ __html: b.path }} />
-        ) : b.path ? (
-          <svg viewBox="0 0 24 24"><path d={b.path} fill={iconColor} /></svg>
-        ) : (
-          <svg viewBox="0 0 60 24"><text x="30" y="17" fill={iconColor} fontSize="13" fontWeight="900" textAnchor="middle" fontFamily="Inter,system-ui,sans-serif">{b.name}</text></svg>
-        ),
-      };
-    });
-    return [...items, ...items];
-  }, []);
-
-  return (
-    <div className="header-floating-area" aria-hidden="true">
-      <div className="floating-logos-track">
-        {logos.map((item, index) => (
-          <div
-            key={`${item.id}-${index}`}
-            className={`floating-logo-pill logo-pos-${(index % 5) + 1}`}
-            style={{ "--bg-color": item.bg, "--border-color": item.border, "--glow-color": item.glow }}
-          >
-            <span className="logo-icon">{item.icon}</span>
-            <span className="logo-name">{item.name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function Header(props) {
+  if (!props.route.startsWith("/admin")) return <StoreHeader {...props} />;
+  return <header className="site-header"><button className="brand" onClick={() => props.navigate("/")}>{props.settings.siteName}</button></header>;
 }
 
-function Header({ settings, cartCount, navigate, route }) {
-  const isAdminRoute = route.startsWith("/admin");
-  const go = (path) => {
-    navigate(path);
-  };
-  const nav = <NavButtons cartCount={cartCount} route={route} go={go} />;
-
-  return (
-    <>
-      <header className="site-header">
-        <div className="header-brand-group">
-          <button className="brand" onClick={() => go("/")}>
-            <img
-              className="brand-logo"
-              src={(!settings.logoImage || settings.logoImage.startsWith("data:image")) ? "/logo-icon.png?v=2" : settings.logoImage}
-              alt={`${settings.siteName} logo`}
-              loading="eager"
-              decoding="async"
-              onError={(e) => {
-                e.currentTarget.src = "/logo-icon.png?v=2";
-              }}
-            />
-            <span>{settings.siteName}</span>
-          </button>
-          {!isAdminRoute && <FloatingLogos />}
-        </div>
-        {!isAdminRoute && (
-          <nav className="site-nav desktop-only">{nav}</nav>
-        )}
-      </header>
-      {!isAdminRoute && (
-        <nav className="site-nav mobile-only">{nav}</nav>
-      )}
-    </>
-  );
-}
-
-function NavButtons({ cartCount, route, go }) {
-  return (
-    <>
-      {["Home", "Offers", "Products", "Categories"].map((label) => {
-        const path = label === "Home" ? "/" : `/${label.toLowerCase()}`;
-        const active = path === "/" ? route === "/" : route.startsWith(path);
-        return <button className={active ? "active" : ""} key={label} onClick={() => go(path)}>{label}</button>;
-      })}
-      <button className={route.startsWith("/cart") ? "cart-link active" : "cart-link"} onClick={() => go("/cart")}>Cart <b>{cartCount}</b></button>
-    </>
-  );
-}
-
-function StickyCartButton({ count, total, settings, navigate }) {
+function StickyCartButton({ count, total, navigate }) {
   const label = count === 1 ? "1 Item" : `${count} Items`;
   return (
     <button className="sticky-cart-cta" onClick={() => navigate("/cart")}>
@@ -408,227 +305,54 @@ function StickyCartButton({ count, total, settings, navigate }) {
   );
 }
 
-function Home({ store, ctx, addToCart, orderNow, navigate, timerTick, isCatalogLoading }) {
-  const featured = ctx.products.filter((p) => p.featured).slice(0, 6);
-  const heroPicks = (featured.length ? featured : ctx.products).slice(0, 3);
-  const [openTrendingId, setOpenTrendingId] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const filteredProducts = ctx.products.filter((p) => {
-    const matchesCat = selectedCategory === "all" || p.categoryId === selectedCategory;
-    const query = searchQuery.toLowerCase().trim();
-    const matchesQuery = !query || p.name.toLowerCase().includes(query) || (p.shortDescription && p.shortDescription.toLowerCase().includes(query));
-    return matchesCat && matchesQuery;
-  });
-
-  return (
-    <>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="eyebrow">Digital subscription store</p>
-          <h1>{store.settings.tagline}</h1>
-          <p>Browse trusted OTT, AI, music and editing plans. Pick a variation, review your cart, and place the order on WhatsApp in one tap.</p>
-          <div className="actions"><button onClick={() => navigate("/products")}>View All Products</button><button className="ghost" onClick={() => navigate("/offers")}>See Offers</button></div>
-          <div className="quick-nav" aria-label="Quick store navigation">
-            <button onClick={() => navigate("/products")}>Products</button>
-            <button onClick={() => navigate("/categories")}>Categories</button>
-            <button onClick={() => navigate("/offers")}>Offers</button>
-            <a href={`https://wa.me/${store.settings.whatsappNumber}`} target="_blank">WhatsApp</a>
-          </div>
-        </div>
-        <div className="hero-panel">
-          <span className="panel-kicker">Trending now</span>
-          <div className="hero-product-stack">
-            {heroPicks.map((product) => {
-              const first = lowestVariation(product);
-              const open = openTrendingId === product.id;
-              return (
-                <div className={open ? "hero-product-wrap open" : "hero-product-wrap"} key={product.id}>
-                  <button className="hero-product" onClick={() => setOpenTrendingId(open ? "" : product.id)}>
-                    <img src={product.image} alt={`${product.name} logo`} loading="eager" fetchPriority="high" decoding="async" />
-                    <span>
-                      <b>{product.name}</b>
-                      <small>{first ? `From ${money(first.price)}` : `From ${money(0)}`}</small>
-                    </span>
-                  </button>
-                  {open && (
-                    <div className="hero-plan-picker">
-                      {product.variations.map((variation) => {
-                        const stocked = isAvailable(variation);
-                        return (
-                          <div className={stocked ? "card-plan-row" : "card-plan-row out"} key={variation.id}>
-                            <div>
-                              <b>{variation.name}</b>
-                              {variation.shortDescription && <span>{variation.shortDescription}</span>}
-                              <small>{money(variation.price)}</small>
-                            </div>
-                            {stocked ? <button onClick={() => addToCart(product.id, variation.id)}>Add</button> : <em>Stock Out</em>}
-                          </div>
-                        );
-                      })}
-                      <button className="text-btn" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <div className="hero-panel-foot">
-            <span><b>{ctx.products.length}</b> products</span>
-            <span><b>{ctx.activeOffers.length}</b> offers</span>
-          </div>
-        </div>
-      </section>
-      <div className="trust-strip">
-        <div className="trust-item">
-          <span className="trust-icon">⚡</span>
-          <div>
-            <strong>Instant Setup</strong>
-            <small>Direct WhatsApp delivery</small>
-          </div>
-        </div>
-        <div className="trust-item">
-          <span className="trust-icon">🛡️</span>
-          <div>
-            <strong>100% Replacement Warranty</strong>
-            <small>Guaranteed full duration</small>
-          </div>
-        </div>
-        <div className="trust-item">
-          <span className="trust-icon">⭐</span>
-          <div>
-            <strong>4.9 / 5 Customer Rating</strong>
-            <small>2,000+ active subscribers</small>
-          </div>
-        </div>
-        <div className="trust-item">
-          <span className="trust-icon">💬</span>
-          <div>
-            <strong>Priority Support</strong>
-            <small>24/7 dedicated help</small>
-          </div>
-        </div>
-      </div>
-      {ctx.activeOffers.length > 0 && (
-        <Section title="Offers / Deals" action="All offers" onAction={() => navigate("/offers")}>
-          <OfferGrid offers={ctx.activeOffers.slice(0, 6)} settings={store.settings} timerTick={timerTick} />
-        </Section>
-      )}
-      <section className="section home-catalog-section">
-        <div className="catalog-header-bar">
-          <div className="catalog-title-group">
-            <h2>All Subscriptions</h2>
-            <p>Pick a plan, choose duration, and get instant access via WhatsApp.</p>
-          </div>
-          <div className="catalog-search-wrap">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search Netflix, Spotify, ChatGPT..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="catalog-search-input"
-            />
-            {searchQuery && (
-              <button className="clear-search-btn" onClick={() => setSearchQuery("")}>✕</button>
-            )}
-          </div>
-        </div>
-
-        <div className="category-filter-chips" role="tablist" aria-label="Filter products">
-          <button
-            type="button"
-            className={selectedCategory === "all" ? "filter-chip active" : "filter-chip"}
-            onClick={() => setSelectedCategory("all")}
-          >
-            All Subscriptions <span>({ctx.products.length})</span>
-          </button>
-          {ctx.categories.map((c) => {
-            const count = ctx.products.filter((p) => p.categoryId === c.id).length;
-            if (count === 0) return null;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                className={selectedCategory === c.id ? "filter-chip active" : "filter-chip"}
-                onClick={() => setSelectedCategory(c.id)}
-              >
-                {c.name} <span>({count})</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {isCatalogLoading ? (
-          <ProductSkeletonGrid />
-        ) : filteredProducts.length === 0 ? (
-          <div className="empty-catalog">
-            <p>No subscriptions found matching "{searchQuery}".</p>
-            <button className="ghost" onClick={() => { setSelectedCategory("all"); setSearchQuery(""); }}>
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <ProductGrid
-            products={filteredProducts}
-            ctx={ctx}
-            settings={store.settings}
-            addToCart={addToCart}
-            orderNow={orderNow}
-            navigate={navigate}
-          />
-        )}
-      </section>
-      <section className="contact-cta">
-        <h2>Need a custom plan?</h2><p>Message Premium Hub directly and we will confirm availability, payment and activation steps.</p>
-        <div className="contact-links">
-          <a href={`https://wa.me/${store.settings.whatsappNumber}`} target="_blank">Contact on WhatsApp</a>
-          {whatsappGroupUrl(store.settings) && <a href={whatsappGroupUrl(store.settings)} target="_blank">Join WhatsApp Group</a>}
-        </div>
-      </section>
-    </>
-  );
-}
-
-function Section({ title, action, onAction, children }) {
-  return <section className="section"><div className="section-head"><h2>{title}</h2>{action && <button className="text-btn" onClick={onAction}>{action}</button>}</div>{children}</section>;
+function Home(props) {
+  return <StoreHome {...props} />;
 }
 
 function CategoryGrid({ categories, navigate }) {
   return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} loading="lazy" decoding="async" /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
 
-function ProductGrid({ products, ctx, settings, addToCart, orderNow, navigate }) {
-  return <div className="product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} settings={settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />)}</div>;
+function ProductGrid({ products, ctx, orderNow, navigate }) {
+  return <div className="shop-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} orderNow={orderNow} navigate={navigate} />)}</div>;
 }
 
-function ProductCard({ product, category, settings, orderNow, navigate }) {
-  const available = availableVariations(product);
-  const first = available[0];
-  const priceFrom = lowestVariation(product);
-  const disabled = !product.active || !first;
-  return (
-    <article className="product-card">
-      <div className="image-wrap">
-        <img src={product.image} alt={`${product.name} logo`} loading="lazy" decoding="async" />
-        {disabled && <span className="stock-badge">Stock Out</span>}
-      </div>
-      <div><span className="pill">{category?.name}</span><h3>{product.name}</h3><p>{product.shortDescription}</p></div>
-      <div className="card-foot"><strong>{priceFrom ? `From ${money(priceFrom.price)}` : `From ${money(0)}`}</strong><span className={disabled ? "stock out" : "stock"}>{productStockText(product)}</span></div>
-      <div className="card-actions"><button className="ghost" onClick={() => navigate(`/products/${product.slug}`)}>View Details</button><button disabled={disabled} onClick={() => orderNow(product.id)}>Order Now</button></div>
-    </article>
-  );
+function ProductCard(props) {
+  return <StoreProductCard {...props} />;
 }
 
-function OrderSheet({ product, settings, onClose, onOrder, navigate }) {
+function OrderSheet({ product, onClose, onOrder, navigate }) {
+  const sheetRef = useRef(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const sheet = sheetRef.current;
+    sheet?.querySelector("button")?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+      const buttons = [...(sheet?.querySelectorAll("button:not(:disabled), a[href]") || [])];
+      if (!buttons.length) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [onClose]);
   if (!product) return null;
   return (
     <div className="sheet-backdrop" role="presentation" onClick={onClose}>
-      <section className="order-sheet" role="dialog" aria-modal="true" aria-label={`Choose ${product.name} plan`} onClick={(event) => event.stopPropagation()}>
+      <section ref={sheetRef} className="order-sheet" role="dialog" aria-modal="true" aria-label={`Choose ${product.name} plan`} aria-describedby="plan-picker-note" onClick={(event) => event.stopPropagation()}>
         <div className="sheet-head">
           <div>
-            <span className="pill">Choose plan</span>
+            <span className="pill">Make it yours</span>
             <h2>{product.name}</h2>
           </div>
           <button className="ghost" onClick={onClose}>Close</button>
@@ -644,32 +368,24 @@ function OrderSheet({ product, settings, onClose, onOrder, navigate }) {
                   {!variation.shortDescription && <small>{stockText(variation)}</small>}
                 </div>
                 <strong>{money(variation.price)}</strong>
-                {stocked ? <button onClick={() => onOrder(product.id, variation.id)}>Order Now</button> : <em>Stock Out</em>}
+                {stocked ? <button onClick={() => onOrder(product.id, variation.id)} aria-label={`Select ${variation.name} for ${money(variation.price)}`}>Select →</button> : <em>Sold out</em>}
               </div>
             );
           })}
         </div>
-        <button className="text-btn" onClick={() => { onClose(); navigate(`/products/${product.slug}`); }}>View full details</button>
+        <p id="plan-picker-note" className="sheet-note">Choose your duration. Review your order before sending it on WhatsApp.</p>
+        <button className="text-btn" onClick={() => { onClose(); navigate(`/products/${product.slug}`); }}>See what’s included</button>
       </section>
     </div>
   );
 }
 
 function Products({ store, ctx, slug, addToCart, orderNow, navigate, isCatalogLoading }) {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("all");
-  if (slug) return <ProductDetails product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} settings={store.settings} addToCart={addToCart} navigate={navigate} />;
-  const filtered = ctx.products.filter((p) => (category === "all" || p.categoryId === category) && p.name.toLowerCase().includes(query.toLowerCase()));
-  return (
-    <section className="section page-top">
-      <div className="section-head"><h1>Products</h1></div>
-      <div className="filters"><input placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={category} onChange={(e) => setCategory(e.target.value)}><option value="all">All categories</option>{ctx.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-      {isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={filtered} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}
-    </section>
-  );
+  if (slug) return isCatalogLoading ? <section className="section page-top"><ProductSkeletonGrid /></section> : <ProductDetails key={slug} product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} addToCart={addToCart} navigate={navigate} />;
+  return <Catalog page ctx={ctx} settings={store.settings} orderNow={orderNow} navigate={navigate} isCatalogLoading={isCatalogLoading} />;
 }
 
-function ProductDetails({ product, ctx, settings, addToCart, navigate }) {
+function ProductDetails({ product, ctx, addToCart, navigate }) {
   const [variationId, setVariationId] = useState(product?.variations.find((v) => isAvailable(v))?.id || product?.variations[0]?.id);
   const [quantity, setQuantity] = useState(1);
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
@@ -723,40 +439,12 @@ function Offers({ ctx, store, timerTick, isCatalogLoading }) {
 }
 
 function ProductSkeletonGrid() {
-  return <div className="product-grid skeleton-grid" aria-label="Loading products">{Array.from({ length: 4 }).map((_, index) => <article className="product-card skeleton-card" key={index}><span className="skeleton-img" /><span className="skeleton-line wide" /><span className="skeleton-line" /><span className="skeleton-line short" /><span className="skeleton-button" /></article>)}</div>;
+  return <div className="shop-product-grid" aria-label="Loading products">{Array.from({ length: 6 }).map((_, index) => <div className="shop-product-skeleton" key={index} />)}</div>;
 }
 
-// Urgency timer: always cycles 15 min (900 seconds) regardless of offer end date
-const URGENCY_CYCLE = 900;
-function OfferGrid({ offers, settings, timerTick }) {
-  if (!offers.length) return <p className="muted">No active offers right now.</p>;
-  // urgency: always count down from 15 min, cycling
-  const urgencySeconds = URGENCY_CYCLE - (Math.floor(timerTick / 1000) % URGENCY_CYCLE);
-  return <div className="offer-grid">{offers.map((offer) => {
-    const image = offer.image || logo("DEAL", "#166834");
-    const waText = encodeURIComponent(`Hi PremiumHub! I want to order: ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} at ${money(offer.price)} Combo Offer. Please Let Me Know the Payment Method.`);
-    const waUrl = `https://wa.me/${settings.whatsappNumber}?text=${waText}`;
-    return (
-      <article className="offer-card" key={offer.id}>
-        <div className="offer-card-image">
-          <img src={image} alt={offer.title || "Offer"} loading="lazy" decoding="async" />
-        </div>
-        <div className="offer-card-body">
-          <div className="offer-card-top">
-            <span className="pill">Deal</span>
-            <span className="offer-timer"><b>{formatOfferTimer(urgencySeconds)}</b> left</span>
-          </div>
-          <h3>{offer.title}</h3>
-          {offer.itemName && <p className="offer-item-name">{offer.itemName}</p>}
-          <p>{offer.description}</p>
-          <div className="offer-card-foot">
-            <strong>{money(offer.price)} <s>{offer.originalPrice ? money(offer.originalPrice) : ""}</s></strong>
-            <a className="offer-order-btn" href={waUrl} target="_blank" rel="noopener noreferrer">Order Now</a>
-          </div>
-        </div>
-      </article>
-    );
-  })}</div>;
+function OfferGrid({ offers, settings }) {
+  if (!offers.length) return <Empty title="New deals are on the way" />;
+  return <StoreOffers offers={offers} settings={settings} />;
 }
 
 function Cart({ cartLines, setCart, store, navigate }) {
@@ -848,7 +536,7 @@ function Cart({ cartLines, setCart, store, navigate }) {
             </div>
             <div className="summary-line">
               <span>Delivery</span>
-              <span className="free-badge">Instant (WhatsApp)</span>
+              <span className="free-badge">Via WhatsApp</span>
             </div>
             <hr className="summary-divider" />
             <div className="summary-line total-line">
@@ -857,14 +545,16 @@ function Cart({ cartLines, setCart, store, navigate }) {
             </div>
             <a
               className={cartLines.every((i) => i.purchasable) ? "order-btn full-btn" : "order-btn full-btn disabled"}
-              href={`https://wa.me/${store.settings.whatsappNumber}?text=${encodeURIComponent(message)}`}
+              href={cartLines.every((i) => i.purchasable) ? whatsappUrl(store.settings, message) : undefined}
+              aria-disabled={!cartLines.every((i) => i.purchasable)}
+              tabIndex={cartLines.every((i) => i.purchasable) ? 0 : -1}
               target="_blank"
               rel="noopener noreferrer"
             >
               Order on WhatsApp →
             </a>
             <p className="summary-guarantee">
-              🛡️ 100% Replacement Warranty • Fast Delivery
+              Review your plan with us on WhatsApp before payment.
             </p>
           </aside>
         </div>
