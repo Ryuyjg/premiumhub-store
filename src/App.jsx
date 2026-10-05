@@ -395,6 +395,7 @@ function OfferGrid({ offers, settings }) {
 
 function Cart({ cartLines, setCart, store, goBack }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
+  const orderReady = cartLines.length > 0 && cartLines.every((item) => item.purchasable);
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
   const updateQty = (productId, variationId, nextQty, maxStock) => {
@@ -490,12 +491,19 @@ function Cart({ cartLines, setCart, store, goBack }) {
               <strong>{money(total)}</strong>
             </div>
             <a
-              className={cartLines.every((i) => i.purchasable) ? "order-btn full-btn" : "order-btn full-btn disabled"}
-              href={cartLines.every((i) => i.purchasable) ? whatsappUrl(store.settings, message) : undefined}
-              aria-disabled={!cartLines.every((i) => i.purchasable)}
-              tabIndex={cartLines.every((i) => i.purchasable) ? 0 : -1}
+              className={orderReady ? "order-btn full-btn" : "order-btn full-btn disabled"}
+              href={orderReady ? whatsappUrl(store.settings, message) : undefined}
+              aria-disabled={!orderReady}
+              tabIndex={orderReady ? 0 : -1}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(event) => {
+                if (!orderReady) {
+                  event.preventDefault();
+                  return;
+                }
+                setCart([]);
+              }}
             >
               Order on WhatsApp →
             </a>
