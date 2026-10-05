@@ -98,7 +98,11 @@ function OfferHighlight({ offers = [], navigate }) {
       <div className="offer-highlight-list">
         {visible.map(offer => (
           <button className="offer-highlight-item" key={offer.id} onClick={() => navigate("/offers")}>
-            <span>{offer.title}</span>
+            {offer.image?.trim() ? <img src={offer.image} alt="" width="54" height="54" loading="eager" decoding="async" /> : <i aria-hidden="true">%</i>}
+            <span>
+              <b>{offer.title}</b>
+              {offer.description && <small>{offer.description}</small>}
+            </span>
             <strong>{money(offer.price)}</strong>
             {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
           </button>
