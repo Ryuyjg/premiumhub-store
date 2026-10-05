@@ -1000,9 +1000,9 @@ main.with-sticky-cart {
 /* Homepage hot offers */
 .offer-highlight {
   display: grid;
-  gap: 14px;
-  margin: 18px 0 24px;
-  padding: 18px;
+  gap: 12px;
+  margin: 18px 0 22px;
+  padding: 16px;
   border: 1px solid #DBEAFE;
   border-radius: 24px;
   background: linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 54%, #F0FDF4 100%);
@@ -1046,21 +1046,21 @@ main.with-sticky-cart {
 
 .offer-highlight-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 12px;
 }
 
 .offer-highlight-item {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   grid-template-areas:
     "media copy"
     "description description"
     "price price";
   align-items: start;
-  gap: 12px 14px;
-  min-height: 208px;
-  padding: 18px;
+  gap: 9px 12px;
+  min-height: 168px;
+  padding: 14px;
   border: 1px solid #BFDBFE;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
@@ -1077,10 +1077,10 @@ main.with-sticky-cart {
 .offer-highlight-item > img,
 .offer-highlight-item > i {
   grid-area: media;
-  width: 72px;
-  height: 72px;
+  width: 58px;
+  height: 58px;
   object-fit: contain;
-  border-radius: 15px;
+  border-radius: 14px;
 }
 
 .offer-highlight-copy {
@@ -1092,14 +1092,14 @@ main.with-sticky-cart {
 
 .offer-highlight-copy b {
   color: #0B0F19;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.18;
   font-family: var(--font-display);
 }
 
 .offer-highlight-copy strong {
   color: #2563EB;
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1.22;
 }
 
@@ -1107,14 +1107,14 @@ main.with-sticky-cart {
   grid-area: description;
   display: block;
   margin: 0;
-  padding: 12px 14px;
+  padding: 8px 10px;
   border: 1px solid #D9F99D;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #F7FEE7;
   color: #1F2937;
-  font-size: 15px;
-  line-height: 1.45;
-  font-weight: 650;
+  font-size: 13.5px;
+  line-height: 1.35;
+  font-weight: 600;
   white-space: normal;
   overflow: visible;
 }
@@ -1130,7 +1130,7 @@ main.with-sticky-cart {
 
 .offer-highlight-price strong {
   color: #0B0F19;
-  font-size: 26px;
+  font-size: 22px;
   line-height: 1;
   font-family: var(--font-display);
 }
@@ -3261,7 +3261,7 @@ label input[type="checkbox"] {
   }
 
   .offer-highlight-item {
-    min-height: 190px;
+    min-height: 156px;
   }
 
   .offer-card {
@@ -3471,8 +3471,8 @@ label input[type="checkbox"] {
   }
 
   .offer-highlight-description {
-    padding: 10px 12px;
-    font-size: 14.5px;
+    padding: 8px 10px;
+    font-size: 13.5px;
   }
 
   .offer-card {
