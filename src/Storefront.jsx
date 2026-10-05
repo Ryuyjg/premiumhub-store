@@ -99,6 +99,11 @@ export function StoreProductCard({ product, category, addToCart, cart = [], navi
   const add = () => {
     if (selected && addToCart(product.id, selected.id)) setAdded(true);
   };
+  const choosePlan = (id) => {
+    if (onPlanChange) onPlanChange(id);
+    else setVariationId(id);
+    setAdded(false);
+  };
   return (
     <article className={`shop-product${soldOut ? " unavailable" : ""}`}>
       <div className="product-identity">
@@ -106,13 +111,27 @@ export function StoreProductCard({ product, category, addToCart, cart = [], navi
         <div><button className="product-name" onClick={() => navigate(`/products/${product.slug}`)}>{product.name}</button><p>{product.shortDescription || category?.name || "Digital subscription"}</p></div>
         {soldOut && <span className="sold-out-label">Sold out</span>}
       </div>
-      <label className="product-plan">
-        <span className="visually-hidden">{product.name} plan</span>
-        <select value={selected?.id || ""} disabled={soldOut} onChange={event => { if (onPlanChange) onPlanChange(event.target.value); else setVariationId(event.target.value); setAdded(false); }}>
-          {!variations.length && <option value="">No plans available</option>}
-          {variations.map(v => <option value={v.id} key={v.id} disabled={!isAvailable(v)}>{v.name} — {money(v.price)}{!isAvailable(v) ? " (Sold out)" : ""}</option>)}
-        </select>
-      </label>
+      <div className="product-plan" role="radiogroup" aria-label={`${product.name} plan`}>
+        {variations.length ? variations.map(v => {
+          const active = selected?.id === v.id;
+          const disabled = !isAvailable(v);
+          return (
+            <button
+              type="button"
+              className={`plan-choice${active ? " selected" : ""}`}
+              key={v.id}
+              disabled={disabled}
+              role="radio"
+              aria-checked={active}
+              onClick={() => choosePlan(v.id)}
+            >
+              <span>{v.name}</span>
+              <strong>{money(v.price)}</strong>
+              {disabled && <small>Sold out</small>}
+            </button>
+          );
+        }) : <span className="no-plans">No plans available</span>}
+      </div>
       <div className="product-bottom">
         <div className="product-price"><strong>{selected ? money(selected.price) : "—"}</strong><small aria-live="polite">{inCart > 0 ? `${inCart} in cart` : selected?.name || ""}</small></div>
         <button className={added ? "add-cart-button added" : "add-cart-button"} disabled={!canAdd} onClick={add} aria-label={`Add ${product.name} ${selected?.name || ""} to cart`}>

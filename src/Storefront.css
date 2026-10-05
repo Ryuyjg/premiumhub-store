@@ -50,8 +50,15 @@ html:has(.storefront), body:has(.storefront) { overflow-x: clip; }
 .product-name:hover { background: none; color: var(--shop-blue); }
 .product-identity p { font-size: 11px; margin: 4px 0 0; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sold-out-label { padding: 3px 5px; background: #f1f3f6; color: #7b8492; font-size: 9px; border-radius: 4px; white-space: nowrap; }
-.product-plan { display: block; }
-.product-plan select { width: 100%; margin: 0; border: 1px solid #dce2ea; border-radius: 7px; padding: 10px 9px; background: #fafbfc; color: #334155; font-size: 12px; cursor: pointer; }
+.product-plan { display: flex; flex-wrap: wrap; gap: 7px; }
+.plan-choice { flex: 1 1 96px; min-width: 0; min-height: 49px; display: grid; align-content: center; gap: 2px; padding: 8px 9px; border: 1px solid #dce2ea; border-radius: 7px; background: #fafbfc; color: #334155; text-align: left; }
+.plan-choice:hover { background: #eff5ff; border-color: #b9cef8; }
+.plan-choice.selected { background: #eaf1ff; border-color: #7ea3ed; color: var(--shop-blue); }
+.plan-choice span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 650; }
+.plan-choice strong { color: inherit; font-size: 13px; line-height: 1.2; }
+.plan-choice small { color: #9a3412; font-size: 10px; line-height: 1.2; }
+.plan-choice:disabled { color: #8b96a5; background: #f1f3f6; border-color: #e3e7ed; cursor: not-allowed; }
+.no-plans { display: block; width: 100%; padding: 10px 9px; border: 1px solid #dce2ea; border-radius: 7px; background: #fafbfc; color: var(--shop-muted); font-size: 12px; }
 .product-bottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; }
 .product-price { display: flex; flex-direction: column; }
 .product-price strong { font: 650 26px/1.2 'Outfit', sans-serif; color: var(--shop-ink); letter-spacing: -.4px; }
@@ -135,7 +142,8 @@ html:has(.storefront), body:has(.storefront) { overflow-x: clip; }
   .product-name { font-size: 19px; }
   .product-identity p { font-size: 11px; }
   .product-bottom { margin-top: 11px; }
-  .product-plan select { padding: 10px 9px; }
+  .product-plan { gap: 6px; }
+  .plan-choice { flex-basis: 88px; min-height: 46px; padding: 7px 8px; }
   .product-price strong { font-size: 25px; }
   .add-cart-button { min-height: 43px; padding: 11px 14px; font-size: 12px; }
   .storefront .page-top { padding-top: 20px; }
