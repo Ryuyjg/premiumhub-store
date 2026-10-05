@@ -86,7 +86,7 @@ export function StoreProductCard({ product, category, addToCart, cart = [], navi
   const [variationId, setVariationId] = useState("");
   const [added, setAdded] = useState(false);
   const variations = product.variations || [];
-  const selected = variations.find(v => v.id === (selectedVariationId ?? variationId)) || lowestVariation(product);
+  const selected = variations.find(v => v.id === (selectedVariationId || variationId)) || lowestVariation(product);
   const available = availableVariations(product);
   const inCart = cart.find(item => item.productId === product.id && item.variationId === selected?.id)?.quantity || 0;
   const soldOut = !product.active || available.length === 0;
@@ -100,8 +100,8 @@ export function StoreProductCard({ product, category, addToCart, cart = [], navi
     if (selected && addToCart(product.id, selected.id)) setAdded(true);
   };
   const choosePlan = (id) => {
+    setVariationId(id);
     if (onPlanChange) onPlanChange(id);
-    else setVariationId(id);
     setAdded(false);
   };
   return (
