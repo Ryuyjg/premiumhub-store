@@ -2150,6 +2150,14 @@ footer button {
   margin-bottom: 20px;
 }
 
+.admin-head-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .admin h1, .login h1 {
   font-size: 30px;
   line-height: 1.2;
@@ -2197,6 +2205,12 @@ footer button {
   border-color: var(--danger-border);
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.admin-status.warning {
+  border-color: #FCD34D;
+  background: #FFFBEB;
+  color: #B45309;
 }
 
 .stats {
@@ -2288,7 +2302,7 @@ footer button {
 
 .editor-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -2301,11 +2315,17 @@ footer button {
   display: grid;
   align-content: start;
   gap: 8px;
+  position: sticky;
+  top: 92px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .admin-list button {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
   background: #F8FAFC;
   color: #0B0F19;
@@ -2317,6 +2337,11 @@ footer button {
   font-weight: 650;
   min-height: 50px;
   padding: 11px 16px;
+}
+
+.admin-list button span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .admin-list button:hover, .admin-list button.selected {
@@ -2507,7 +2532,7 @@ label input[type="checkbox"] {
 
 .variation-card summary {
   display: grid;
-  grid-template-columns: minmax(130px, 1.2fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) auto;
+  grid-template-columns: minmax(160px, 1.4fr) minmax(110px, 0.7fr) minmax(130px, 0.8fr);
   gap: 10px;
   align-items: center;
   min-height: 54px;
@@ -2557,20 +2582,44 @@ label input[type="checkbox"] {
 
 .variation-row {
   display: grid;
-  grid-template-columns: minmax(140px, 1.2fr) minmax(100px, 0.8fr) minmax(100px, 0.8fr) minmax(90px, 0.7fr) auto auto;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  gap: 12px;
   align-items: end;
   padding: 0 16px 16px;
 }
 
-.variation-stock-toggle {
+.variation-row label:nth-child(4) {
+  grid-column: span 2;
+}
+
+.stock-actions {
   min-height: 46px;
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stock-actions button {
+  min-height: 46px;
+  padding: 8px 12px;
   border: 1px solid #CBD5E1;
   border-radius: 10px;
-  background: #FFFFFF;
+  background: #F8FAFC;
+  color: #334155;
+  box-shadow: none;
+  font-size: 13px;
+}
+
+.stock-actions button.active {
+  border-color: #10B981;
+  background: #ECFDF5;
+  color: #047857;
+}
+
+.stock-actions button.danger.active {
+  border-color: #FCA5A5;
+  background: #FEF2F2;
+  color: #DC2626;
 }
 
 .login {
@@ -2994,8 +3043,12 @@ label input[type="checkbox"] {
 
   .admin-list {
     display: flex;
+    position: static;
+    max-height: none;
     overflow-x: auto;
+    overflow-y: hidden;
     padding-bottom: 4px;
+    padding-right: 0;
     scroll-snap-type: x mandatory;
   }
 
@@ -3026,9 +3079,13 @@ label input[type="checkbox"] {
     padding: 0 12px 12px;
   }
 
+  .variation-row label:nth-child(4) {
+    grid-column: auto;
+  }
+
   .editor-actions {
     position: sticky;
-    bottom: calc(76px + env(safe-area-inset-bottom));
+    bottom: calc(12px + env(safe-area-inset-bottom));
     z-index: 12;
     padding: 10px 12px;
     border-radius: 16px;

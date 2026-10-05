@@ -136,7 +136,7 @@ function App() {
   const updateStore = async (next, successMessage = "✓ Changes saved successfully", _errorMessage = "✕ Failed to save changes. Please try again.") => {
     const updated = typeof next === "function" ? next(store) : next;
     setSaveStatus("Saving...");
-    // Always apply changes to state and localStorage immediately — never revert
+    // Apply changes locally first so admin edits are not lost if the network drops.
     setStore(updated);
     setSavedStore(updated);
     try {
@@ -146,14 +146,21 @@ function App() {
         credentials: "include",
         body: JSON.stringify(updated),
       });
-      if (!response.ok) throw new Error("Save failed");
+      if (!response.ok) {
+        const error = new Error("Save failed");
+        error.status = response.status;
+        throw error;
+      }
       const saved = await response.json();
       setStore(saved);
       setSavedStore(saved);
       setSaveStatus(successMessage);
-    } catch {
-      // Keep the local changes — don't revert. Data is safe in localStorage.
-      setSaveStatus("✓ Saved locally. Tap Save again to retry cloud sync.");
+    } catch (error) {
+      // Keep the local changes, but make it clear that Vercel/catalog sync did not finish.
+      setSaveStatus(error?.status === 401 || error?.status === 403
+        ? "Admin session expired. Log in again, then press Save once more."
+        : "Saved on this device only. Cloud save failed — press Save again to retry."
+      );
     }
   };
   const addToCart = (productId, variationId, quantity = 1, unitPrice) => {
@@ -511,8 +518,8 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
     <section className="admin page-top">
       <div className="admin-head">
         <div><h1>Admin Dashboard</h1></div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-          <button className="ghost" type="button" onClick={() => optimizeAllStoreImages(store, updateStore, setSaveStatus)}>⚡ Speed Boost (Compress Images)</button>
+        <div className="admin-head-actions">
+          <button className="ghost" type="button" onClick={() => optimizeAllStoreImages(store, updateStore, setSaveStatus)}>⚡ Speed Boost</button>
           <button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button>
         </div>
       </div>
@@ -576,7 +583,9 @@ function ProductAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
       return;
     }
     const variations = draft.variations.map((variation, index) => {
-      const variationStock = Math.max(0, Number(variation.stock) || (variation.inStock !== false ? 10 : 0));
+      const hasStockValue = !(variation.stock === "" || variation.stock === null || variation.stock === undefined);
+      const rawStock = hasStockValue ? Number(variation.stock) : (variation.inStock !== false ? 10 : 0);
+      const variationStock = Math.max(0, Number.isFinite(rawStock) ? rawStock : 0);
       const originalPrice = variation.originalPrice === "" || variation.originalPrice === null || variation.originalPrice === undefined ? "" : Number(variation.originalPrice);
       return {
         ...variation,
@@ -668,7 +677,17 @@ function ProductForm({ draft, setDraft, categories }) {
 function VariationEditor({ variations, setVariations, productId }) {
   const set = (id, key, value) => setVariations(variations.map((v) => (v.id === id ? { ...v, [key]: value } : v)));
   const setStock = (id, value) => {
-    setVariations(variations.map((v) => (v.id === id ? { ...v, stock: value, inStock: value !== "" && Number(value) > 0 } : v)));
+    setVariations(variations.map((v) => {
+      if (v.id !== id) return v;
+      const quantity = Number(value);
+      return { ...v, stock: value, inStock: value !== "" && Number.isFinite(quantity) && quantity > 0 };
+    }));
+  };
+  const markStock = (id, stocked) => {
+    setVariations(variations.map((v) => {
+      if (v.id !== id) return v;
+      return { ...v, stock: stocked ? Math.max(1, stockNumber(v) || 10) : 0, inStock: stocked };
+    }));
   };
   const addVar = () => {
     setVariations([
@@ -713,8 +732,11 @@ function VariationEditor({ variations, setVariations, productId }) {
             <label>Original / MRP price (₹ INR)<input type="number" min="0" value={v.originalPrice ?? ""} onChange={(e) => set(v.id, "originalPrice", e.target.value)} placeholder="e.g. 399" /></label>
             <label>Plan note<input value={v.shortDescription || ""} onChange={(e) => set(v.id, "shortDescription", e.target.value)} placeholder="e.g. Private account • 25 days" /></label>
             <label>Stock qty<input type="number" min="0" value={v.stock ?? (v.inStock ? 10 : 0)} onChange={(e) => setStock(v.id, e.target.value)} placeholder="10" /></label>
-            <label className="variation-stock-toggle"><input type="checkbox" checked={isAvailable(v)} onChange={(e) => setStock(v.id, e.target.checked ? Math.max(1, stockNumber(v) || 10) : 0)} /> In stock</label>
-            <button type="button" className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>✕ Delete Plan</button>
+            <div className="stock-actions" aria-label="Stock status">
+              <button type="button" className={isAvailable(v) ? "active" : ""} onClick={() => markStock(v.id, true)}>In stock</button>
+              <button type="button" className={!isAvailable(v) ? "danger active" : "danger"} onClick={() => markStock(v.id, false)}>Stock out</button>
+            </div>
+            <button type="button" className="text-btn danger-btn" onClick={() => setVariations(variations.filter((item) => item.id !== v.id))}>Delete plan</button>
           </div>
         </details>
       ))}
@@ -840,16 +862,24 @@ function getAdminItemStatus(item) {
 }
 
 function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveStatus }) {
+  const selectedItem = list.find((item) => item.id === activeId);
+  const selectedName = selectedItem?.name || selectedItem?.title || "this item";
+  const handleDelete = () => {
+    if (!selectedItem) return;
+    if (window.confirm(`Delete ${selectedName}? This removes it from the website after save.`)) {
+      remove();
+    }
+  };
   return (
     <section className="admin-editor">
       <div className="section-head"><h2>{title}</h2><button onClick={onNew}>New</button></div>
       <div className="editor-layout">
-        <div className="admin-list">
+        <div className="admin-list" aria-label={`${title} list`}>
           {list.map((item) => {
             const status = getAdminItemStatus(item);
             return (
               <button className={item.id === activeId ? "selected" : ""} key={item.id} onClick={() => pick(structuredClone(item))}>
-                {item.name || item.title}
+                <span>{item.name || item.title}</span>
                 <small className={status.danger ? "danger" : ""}>{status.text}</small>
               </button>
             );
@@ -860,7 +890,7 @@ function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveS
           <div className="actions editor-actions">
             <AdminStatusMessage message={saveStatus} />
             <button onClick={save}>Save</button>
-            <button className="ghost delete-action" onClick={remove}>Delete</button>
+            <button className="ghost delete-action" onClick={handleDelete} disabled={!selectedItem}>Delete selected</button>
           </div>
         </div>
       </div>
@@ -871,7 +901,7 @@ function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveS
 function AdminStatusMessage({ message }) {
   if (!message) return null;
   const normalized = message.toLowerCase();
-  const kind = normalized.includes("failed") || normalized.includes("required") ? "error" : normalized.includes("saving") ? "saving" : "active";
+  const kind = normalized.includes("failed") || normalized.includes("required") || normalized.includes("expired") ? "error" : normalized.includes("only") || normalized.includes("retry") ? "warning" : normalized.includes("saving") ? "saving" : "active";
   return <div className={`admin-status ${kind}`} role="status">{message}</div>;
 }
 
