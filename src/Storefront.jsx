@@ -59,6 +59,7 @@ export function Catalog({ ctx, settings, addToCart, cart = [], navigate, isCatal
         <div><h1>{page ? "All subscriptions" : "Shop subscriptions"}</h1><p>Choose a plan. Add to cart. Order on WhatsApp.</p></div>
         <button className="offers-link" onClick={() => navigate("/offers")}>Offers <Icon name="arrow" size={16} /></button>
       </div>
+      {!page && <OfferHighlight offers={ctx.activeOffers} navigate={navigate} />}
       <div className="shop-search">
         <Icon name="search" size={21} />
         <label className="visually-hidden" htmlFor={page ? "products-search" : "catalog-search"}>Search subscriptions</label>
@@ -78,6 +79,31 @@ export function Catalog({ ctx, settings, addToCart, cart = [], navigate, isCatal
       ) : (
         <div className="shop-empty"><h2>No products found</h2><p>Try another name or clear your filters.</p><button onClick={reset}>Clear filters</button><a href={whatsappUrl(settings, `Hello Premium Hub, do you have ${query.trim() || "other subscription plans"}?`)} target="_blank" rel="noopener noreferrer">Ask us on WhatsApp</a></div>
       )}
+    </section>
+  );
+}
+
+function OfferHighlight({ offers = [], navigate }) {
+  const visible = offers.slice(0, 3);
+  if (!visible.length) return null;
+  return (
+    <section className="offer-highlight" aria-label="Hot offers">
+      <div className="offer-highlight-head">
+        <div>
+          <span>Hot offers</span>
+          <strong>Best deals today</strong>
+        </div>
+        <button onClick={() => navigate("/offers")}>View all offers <Icon name="arrow" size={16} /></button>
+      </div>
+      <div className="offer-highlight-list">
+        {visible.map(offer => (
+          <button className="offer-highlight-item" key={offer.id} onClick={() => navigate("/offers")}>
+            <span>{offer.title}</span>
+            <strong>{money(offer.price)}</strong>
+            {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

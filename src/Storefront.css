@@ -26,8 +26,20 @@ html:has(.storefront), body:has(.storefront) { overflow-x: clip; }
 .catalog-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 22px; }
 .catalog-heading h1 { font: 650 32px/1.2 'Outfit', sans-serif; letter-spacing: -.7px; margin: 0; }
 .catalog-heading p { font-size: 13px; margin: 7px 0 0; line-height: 1.6; }
-.offers-link { display: flex; gap: 6px; align-items: center; background: none; color: var(--shop-blue); border: 0; padding: 8px 0; font-size: 13px; }
-.offers-link:hover { background: none; color: #1d4ed8; }
+.offers-link { display: flex; gap: 6px; align-items: center; background: #ecfdf3; color: #128451; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 13px; font-size: 13px; font-weight: 750; }
+.offers-link:hover { background: #dcfce7; color: #0f6d43; }
+.offer-highlight { margin: -7px 0 18px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; }
+.offer-highlight-head { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 12px; }
+.offer-highlight-head span { display: block; color: #128451; font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: .08em; }
+.offer-highlight-head strong { display: block; margin-top: 2px; font: 700 22px/1.15 'Outfit', sans-serif; color: var(--shop-ink); }
+.offer-highlight-head button { display: flex; gap: 6px; align-items: center; flex-shrink: 0; border: 0; border-radius: 8px; background: #128451; color: #fff; padding: 11px 14px; font-size: 12px; font-weight: 750; }
+.offer-highlight-head button:hover { background: #0f6d43; }
+.offer-highlight-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.offer-highlight-item { min-width: 0; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; padding: 12px; border: 1px solid #bbf7d0; border-radius: 10px; background: #fff; color: var(--shop-ink); text-align: left; }
+.offer-highlight-item:hover { background: #f8fffb; }
+.offer-highlight-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 750; }
+.offer-highlight-item strong { color: #128451; font-size: 18px; }
+.offer-highlight-item s { grid-column: 2; color: #94a3b8; font-size: 11px; }
 .shop-search { display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 15px; background: #fff; border: 1px solid #d4dbe5; border-radius: 9px; color: #8390a2; }
 .shop-search:focus-within { border-color: #7ea3ed; }
 .shop-search input { flex: 1; min-width: 0; width: auto; background: none; border: 0; padding: 0; margin: 0; outline: none; box-shadow: none; color: var(--shop-ink); font-size: 14px; }
@@ -138,6 +150,12 @@ html:has(.storefront), body:has(.storefront) { overflow-x: clip; }
   .catalog-heading h1 { font-size: 26px; }
   .catalog-heading p { font-size: 11px; margin-top: 5px; }
   .offers-link { font-size: 12px; }
+  .offer-highlight { margin-top: -3px; padding: 13px; }
+  .offer-highlight-head { align-items: flex-start; }
+  .offer-highlight-head strong { font-size: 19px; }
+  .offer-highlight-head button { padding: 10px 11px; font-size: 11px; }
+  .offer-highlight-list { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 2px; scrollbar-width: thin; }
+  .offer-highlight-item { min-width: 210px; }
   .shop-search { height: 47px; gap: 8px; padding: 0 12px; }
   .shop-search input { font-size: 12px; }
   .shop-categories { gap: 6px; padding-top: 11px; }
