@@ -1,8 +1,38 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { BRAND_LOGOS_DATA } from "../src/brandLogos.js";
 import { seedData } from "../src/storeData.js";
 
 const CATALOG_KEY = "catalog";
 const LARGE_DATA_IMAGE_LENGTH = 60000;
+const BRAND_LOGO_MAP = new Map(BRAND_LOGOS_DATA.map((brand) => [brand.id, brand]));
+const CUSTOM_BRANDS = new Map([
+  ["prime-video", { color: "#00A8E1", label: "Prime", textColor: "#fff" }],
+  ["jiohotstar", { color: "#0B5CFF", label: "JioHotstar", textColor: "#fff" }],
+  ["hotstar", { color: "#0B5CFF", label: "Hotstar", textColor: "#fff" }],
+  ["gemini", { color: "#8B5CF6", label: "Gemini", textColor: "#fff" }],
+  ["replit", { color: "#F26207", label: "Replit", textColor: "#fff" }],
+  ["n8n", { color: "#EA4B71", label: "n8n", textColor: "#fff" }],
+  ["capcut", { color: "#111827", label: "CapCut", textColor: "#fff" }],
+]);
+const BRAND_ALIASES = [
+  ["youtube", ["youtube-premium", "youtube"]],
+  ["netflix", ["netflix"]],
+  ["spotify", ["spotify"]],
+  ["openai", ["chatgpt", "gpt", "openai"]],
+  ["anthropic", ["claude"]],
+  ["canva", ["canva"]],
+  ["sonyliv", ["sonyliv", "sony-liv", "sony liv"]],
+  ["zee5", ["zee5"]],
+  ["appletv", ["apple-tv", "apple tv", "appletv"]],
+  ["applemusic", ["apple-music", "apple music"]],
+  ["prime-video", ["prime-video", "prime video", "amazon prime"]],
+  ["jiohotstar", ["jiohotstar", "jio-hotstar", "jio hotstar"]],
+  ["hotstar", ["hotstar"]],
+  ["gemini", ["gemini"]],
+  ["replit", ["replit"]],
+  ["n8n", ["n8n"]],
+  ["capcut", ["capcut", "capcut-pro", "capcut pro"]],
+];
 
 export function sendJson(res, response, status = 200, headers = {}) {
   res.statusCode = status;
@@ -136,6 +166,41 @@ function compactImage(value, label = "Premium Hub") {
   return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${background}"/><text x="80" y="84" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#fff">${safeText}</text></svg>`)}`;
 }
 
+function dataSvg(svg) {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function normalizeText(value) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function brandKeyFor(item) {
+  const values = [item?.id, item?.slug, item?.name, item?.title].map(normalizeText);
+  const readable = String([item?.id, item?.slug, item?.name, item?.title].filter(Boolean).join(" ")).toLowerCase();
+  for (const [key, aliases] of BRAND_ALIASES) {
+    if (aliases.some((alias) => values.includes(normalizeText(alias)) || readable.includes(alias))) return key;
+  }
+  return "";
+}
+
+function brandImage(item) {
+  const key = brandKeyFor(item);
+  const custom = CUSTOM_BRANDS.get(key);
+  if (custom) {
+    const safeLabel = custom.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="34" fill="${custom.color}"/><text x="80" y="84" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="${safeLabel.length > 8 ? 18 : 25}" font-weight="850" fill="${custom.textColor}">${safeLabel}</text></svg>`);
+  }
+
+  const brand = BRAND_LOGO_MAP.get(key);
+  if (!brand) return "";
+
+  const background = brand.color === "#FFFFFF" ? "#111827" : brand.color;
+  const icon = brand.path.trim().startsWith("<svg")
+    ? brand.path.replace("<svg ", '<svg x="32" y="32" width="96" height="96" ')
+    : `<svg x="36" y="36" width="88" height="88" viewBox="0 0 24 24"><path fill="#fff" d="${brand.path}"/></svg>`;
+  return dataSvg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="34" fill="${background}"/>${icon}</svg>`);
+}
+
 export function publicCatalog(data) {
   return {
     ...data,
@@ -147,7 +212,7 @@ export function publicCatalog(data) {
       ? data.categories.map((category) => ({ ...category, image: compactImage(category.image, category.name) }))
       : [],
     products: Array.isArray(data.products)
-      ? data.products.map((product) => ({ ...product, image: compactImage(product.image, product.name) }))
+      ? data.products.map((product) => ({ ...product, image: brandImage(product) || compactImage(product.image, product.name) }))
       : [],
     offers: Array.isArray(data.offers)
       ? data.offers.map((offer) => ({ ...offer, image: compactImage(offer.image, offer.itemName || offer.title) }))
