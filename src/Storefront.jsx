@@ -107,13 +107,16 @@ function OfferHighlight({ offers = [], ctx, addToCart, navigate }) {
         {visible.map(offer => (
           <button className="offer-highlight-item" key={offer.id} onClick={() => chooseOffer(offer)} aria-label={`Add ${offer.title} offer to cart`}>
             {/combo|heavy/i.test(offer.title || "") ? <OfferFallback title={offer.title} /> : offer.image?.trim() ? <img src={offer.image} alt="" width="54" height="54" loading="eager" decoding="async" /> : <OfferFallback title={offer.title} />}
-            <span>
+            <span className="offer-highlight-copy">
               <b>{offer.title}</b>
+              {offer.itemName && <strong>{offer.itemName}</strong>}
               {offer.description && <small>{offer.description}</small>}
             </span>
-            <strong>{money(offer.price)}</strong>
-            {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
-            <em className="offer-add-note">Tap to add</em>
+            <span className="offer-highlight-price">
+              <strong>{money(offer.price)}</strong>
+              {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
+              <em className="offer-add-note">Tap to add</em>
+            </span>
           </button>
         ))}
       </div>
