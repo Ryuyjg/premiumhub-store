@@ -59,7 +59,7 @@ export function Catalog({ ctx, settings, addToCart, cart = [], navigate, isCatal
         <div><h1>{page ? "All subscriptions" : "Shop subscriptions"}</h1><p>Choose a plan. Add to cart. Order on WhatsApp.</p></div>
         <button className="offers-link" onClick={() => navigate("/offers")}>Offers <Icon name="arrow" size={16} /></button>
       </div>
-      {!page && <OfferHighlight offers={ctx.activeOffers} navigate={navigate} />}
+      {!page && <OfferHighlight offers={ctx.activeOffers} ctx={ctx} addToCart={addToCart} navigate={navigate} />}
       <div className="shop-search">
         <Icon name="search" size={21} />
         <label className="visually-hidden" htmlFor={page ? "products-search" : "catalog-search"}>Search subscriptions</label>
@@ -83,9 +83,17 @@ export function Catalog({ ctx, settings, addToCart, cart = [], navigate, isCatal
   );
 }
 
-function OfferHighlight({ offers = [], navigate }) {
+function OfferHighlight({ offers = [], ctx, addToCart, navigate }) {
   const visible = offers.slice(0, 3);
   if (!visible.length) return null;
+  const chooseOffer = (offer) => {
+    const items = resolveOfferItems(offer, ctx);
+    if (items.length && items.every(item => addToCart?.(item.productId, item.variationId, 1, item.price))) {
+      navigate("/cart");
+      return;
+    }
+    navigate("/offers");
+  };
   return (
     <section className="offer-highlight" aria-label="Hot offers">
       <div className="offer-highlight-head">
@@ -97,7 +105,7 @@ function OfferHighlight({ offers = [], navigate }) {
       </div>
       <div className="offer-highlight-list">
         {visible.map(offer => (
-          <button className="offer-highlight-item" key={offer.id} onClick={() => navigate("/offers")}>
+          <button className="offer-highlight-item" key={offer.id} onClick={() => chooseOffer(offer)} aria-label={`Add ${offer.title} offer to cart`}>
             {/combo|heavy/i.test(offer.title || "") ? <OfferFallback title={offer.title} /> : offer.image?.trim() ? <img src={offer.image} alt="" width="54" height="54" loading="eager" decoding="async" /> : <OfferFallback title={offer.title} />}
             <span>
               <b>{offer.title}</b>
@@ -105,11 +113,52 @@ function OfferHighlight({ offers = [], navigate }) {
             </span>
             <strong>{money(offer.price)}</strong>
             {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
+            <em className="offer-add-note">Tap to add</em>
           </button>
         ))}
       </div>
     </section>
   );
+}
+
+function resolveOfferItems(offer, ctx) {
+  if (offer.productId && offer.variationId) return [{ productId: offer.productId, variationId: offer.variationId, price: Number(offer.price) }];
+
+  const text = `${offer.title || ""} ${offer.itemName || ""}`.toLowerCase();
+  const findProduct = (...terms) => ctx.products.find(product => {
+    const productText = `${product.id} ${product.slug} ${product.name}`.toLowerCase();
+    return terms.some(term => productText.includes(term));
+  });
+  const findVariation = (product, ...terms) => {
+    const available = availableVariations(product);
+    return available.find(variation => terms.some(term => variation.name.toLowerCase().includes(term))) || lowestVariation(product);
+  };
+  const offerPrice = Number(offer.price);
+
+  if (/combo|heavy/.test(text)) {
+    const netflix = findProduct("netflix");
+    const prime = findProduct("prime");
+    const netflixVariation = findVariation(netflix, "1 month");
+    const primeVariation = findVariation(prime, "1 month");
+    const items = [
+      netflix && netflixVariation ? { productId: netflix.id, variationId: netflixVariation.id, basePrice: Number(netflixVariation.price) } : null,
+      prime && primeVariation ? { productId: prime.id, variationId: primeVariation.id, basePrice: Number(primeVariation.price) } : null,
+    ].filter(Boolean);
+    if (items.length < 2 || !Number.isFinite(offerPrice)) return items.map(({ basePrice, ...item }) => ({ ...item, price: basePrice }));
+    const total = items.reduce((sum, item) => sum + item.basePrice, 0);
+    let remaining = offerPrice;
+    return items.map((item, index) => {
+      const price = index === items.length - 1 ? remaining : Math.max(0, Math.round((item.basePrice / total) * offerPrice));
+      remaining -= price;
+      return { productId: item.productId, variationId: item.variationId, price };
+    });
+  }
+
+  const product = text.includes("spotify") || text.includes("spotyfi")
+    ? findProduct("spotify")
+    : text.includes("hotstar") ? (findProduct("hotstar premium") || findProduct("jiohotstar") || findProduct("hotstar")) : null;
+  const variation = product ? findVariation(product, "3 month", "3 months", "1 month") : null;
+  return product && variation ? [{ productId: product.id, variationId: variation.id, price: Number.isFinite(offerPrice) ? offerPrice : Number(variation.price) }] : [];
 }
 
 function OfferFallback({ title }) {

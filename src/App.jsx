@@ -265,7 +265,8 @@ function hydrateCart(cart, ctx) {
     const product = ctx.productById[item.productId];
     const variation = product?.variations.find((v) => v.id === item.variationId);
     if (!product || !variation) return null;
-    const unitPrice = Number(variation.price);
+    const savedPrice = Number(item.unitPrice);
+    const unitPrice = Number.isFinite(savedPrice) && savedPrice >= 0 ? savedPrice : Number(variation.price);
     const quantity = Math.min(Math.max(1, Number(item.quantity) || 1), stockLimit(variation));
     return {
       ...item,
