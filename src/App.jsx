@@ -1,8 +1,8 @@
-import { Component, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { logo, seedData } from "./storeData";
 import "./App.css";
-import { Catalog, StoreHeader, StoreHome, StoreOffers, StoreProductCard } from "./Storefront";
-import { money, stockNumber, stockLimit, isAvailable, stockText, availableVariations, hasAvailableVariation, whatsappUrl } from "./storefrontUtils";
+import { Catalog, Icon, StoreHeader, StoreHome, StoreOffers, StoreProductCard } from "./Storefront";
+import { money, stockNumber, stockLimit, isAvailable, stockText, hasAvailableVariation, whatsappUrl } from "./storefrontUtils";
 
 const STORE_KEY = "premium-hub-store-v2";
 const CART_KEY = "premium-hub-cart-v1";
@@ -63,10 +63,8 @@ function App() {
   const [cart, setCart] = useState(loadCart);
   const [route, setRoute] = useState(currentRoute);
   const [adminAuthed, setAdminAuthed] = useState(false);
-  const [notice, setNotice] = useState("");
   const [dataStatus, setDataStatus] = useState("Loading catalog...");
   const [saveStatus, setSaveStatus] = useState("");
-  const [orderProductId, setOrderProductId] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
   const isCatalogLoading = dataStatus === "Loading catalog...";
 
@@ -95,17 +93,16 @@ function App() {
       .catch(() => setAdminAuthed(false));
   }, []);
   useEffect(() => {
-    if (!notice) return undefined;
-    const timer = setTimeout(() => setNotice(""), 2200);
-    return () => clearTimeout(timer);
-  }, [notice]);
-  useEffect(() => {
     if (!saveStatus) return undefined;
     const timer = setTimeout(() => setSaveStatus(""), 2600);
     return () => clearTimeout(timer);
   }, [saveStatus]);
   useEffect(() => {
-    const onPop = () => setRoute(currentRoute());
+    const onPop = () => {
+      setRoute(currentRoute());
+      const position = history.state?.shopScroll || 0;
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollTo({ top: position, behavior: "instant" })));
+    };
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
   }, []);
@@ -126,9 +123,15 @@ function App() {
   const cartTotal = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const showStickyCart = cartCount > 0 && !route.startsWith("/cart") && !route.startsWith("/admin");
   const navigate = (path) => {
-    history.pushState(null, "", path);
+    if (path === route) { scrollTo({ top: 0, behavior: "instant" }); return; }
+    history.replaceState({ ...history.state, shopScroll: window.scrollY }, "");
+    history.pushState({ shopNavigation: true, shopScroll: 0 }, "", path);
     setRoute(path);
-    scrollTo({ top: 0, behavior: "smooth" });
+    scrollTo({ top: 0, behavior: "instant" });
+  };
+  const goBack = () => {
+    if (history.state?.shopNavigation) history.back();
+    else navigate("/");
   };
   const updateStore = async (next, successMessage = "✓ Changes saved successfully", _errorMessage = "✕ Failed to save changes. Please try again.") => {
     const updated = typeof next === "function" ? next(store) : next;
@@ -158,41 +161,25 @@ function App() {
     const variation = product?.variations.find((item) => item.id === variationId);
     if (!product?.active || !isAvailable(variation)) return false;
     const maxStock = stockLimit(variation);
+    const currentQuantity = cart.find(item => item.productId === productId && item.variationId === variationId)?.quantity || 0;
+    if (currentQuantity >= maxStock) return false;
     const price = unitPrice === undefined ? variation.price : Number(unitPrice);
     setCart((items) => {
       const found = items.find((item) => item.productId === productId && item.variationId === variationId);
       if (found) return items.map((item) => item === found ? { ...item, quantity: Math.min(maxStock, item.quantity + quantity), unitPrice: unitPrice === undefined ? item.unitPrice : price } : item);
       return [...items, { productId, variationId, quantity: Math.min(maxStock, Math.max(1, quantity)), unitPrice: price }];
     });
-    setNotice(`${product.name} (${variation.name}) added to cart`);
     return true;
   };
-  const orderNow = (productId) => {
-    const product = ctx.productById[productId];
-    const available = availableVariations(product);
-    if (!product?.active || !available.length) return;
-    if (available.length === 1) {
-      if (addToCart(product.id, available[0].id)) navigate("/cart");
-      return;
-    }
-    setOrderProductId(product.id);
-  };
-  const addVariationAndCart = (productId, variationId) => {
-    if (addToCart(productId, variationId)) {
-      setOrderProductId("");
-      navigate("/cart");
-    }
-  };
-
-  const props = { store, ctx, cartLines, cart, setCart, addToCart, orderNow, navigate, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
+  const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, goBack, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
   return (
     <div className={route.startsWith("/admin") ? "admin-app" : "storefront"}>
-      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} route={route} />
-      {notice && <div className="toast" role="status">{notice}</div>}
+      <Header settings={store.settings} cartCount={cartCount} navigate={navigate} goBack={goBack} route={route} />
       <main className={showStickyCart ? "with-sticky-cart" : ""}>
-        <RouteErrorBoundary key={route}>
-          {route === "/" && <Home {...props} />}
-          {route.startsWith("/products") && <Products {...props} slug={route.split("/")[2]} />}
+        <RouteErrorBoundary route={route}>
+          <div hidden={route !== "/"}><Home {...props} /></div>
+          <div hidden={route !== "/products"}><Products {...props} /></div>
+          {route.startsWith("/products/") && <Products {...props} slug={route.split("/")[2]} />}
           {route.startsWith("/categories") && <Categories {...props} slug={route.split("/")[2]} />}
           {route === "/offers" && <Offers {...props} />}
           {route === "/cart" && <Cart {...props} />}
@@ -203,17 +190,20 @@ function App() {
       {showStickyCart && (
         <StickyCartButton count={cartCount} total={cartTotal} settings={store.settings} navigate={navigate} />
       )}
-      {orderProductId && <OrderSheet product={ctx.productById[orderProductId]} settings={store.settings} onClose={() => setOrderProductId("")} onOrder={addVariationAndCart} navigate={navigate} />}
       {!route.startsWith("/admin") && <Footer settings={store.settings} />}
     </div>
   );
 }
 
 class RouteErrorBoundary extends Component {
-  state = { failed: false };
+  state = { failed: false, route: null };
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  static getDerivedStateFromProps(props, state) {
+    return props.route !== state.route ? { failed: false, route: props.route } : null;
   }
 
   render() {
@@ -295,14 +285,7 @@ function Header(props) {
 }
 
 function StickyCartButton({ count, total, navigate }) {
-  const label = count === 1 ? "1 Item" : `${count} Items`;
-  return (
-    <button className="sticky-cart-cta" onClick={() => navigate("/cart")}>
-      <span>View Cart</span>
-      <b>{label}</b>
-      <strong>{money(total)}</strong>
-    </button>
-  );
+  return <button className="sticky-cart-cta" onClick={() => navigate("/cart")}><span>View cart ({count}) <Icon name="arrow" size={17} /></span><strong>{money(total)}</strong></button>;
 }
 
 function Home(props) {
@@ -313,86 +296,28 @@ function CategoryGrid({ categories, navigate }) {
   return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} loading="lazy" decoding="async" /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
 
-function ProductGrid({ products, ctx, orderNow, navigate }) {
-  return <div className="shop-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} orderNow={orderNow} navigate={navigate} />)}</div>;
+function ProductGrid({ products, ctx, addToCart, cart, navigate }) {
+  return <div className="shop-product-grid">{products.map((product) => <ProductCard key={product.id} product={product} category={ctx.categoryById[product.categoryId]} addToCart={addToCart} cart={cart} navigate={navigate} />)}</div>;
 }
 
 function ProductCard(props) {
   return <StoreProductCard {...props} />;
 }
 
-function OrderSheet({ product, onClose, onOrder, navigate }) {
-  const sheetRef = useRef(null);
-  useEffect(() => {
-    const previousFocus = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const sheet = sheetRef.current;
-    sheet?.querySelector("button")?.focus();
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab") return;
-      const buttons = [...(sheet?.querySelectorAll("button:not(:disabled), a[href]") || [])];
-      if (!buttons.length) return;
-      const first = buttons[0];
-      const last = buttons[buttons.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
-    };
-  }, [onClose]);
-  if (!product) return null;
-  return (
-    <div className="sheet-backdrop" role="presentation" onClick={onClose}>
-      <section ref={sheetRef} className="order-sheet" role="dialog" aria-modal="true" aria-label={`Choose ${product.name} plan`} aria-describedby="plan-picker-note" onClick={(event) => event.stopPropagation()}>
-        <div className="sheet-head">
-          <div>
-            <span className="pill">Make it yours</span>
-            <h2>{product.name}</h2>
-          </div>
-          <button className="ghost" onClick={onClose}>Close</button>
-        </div>
-        <div className="sheet-plans">
-          {product.variations.map((variation) => {
-            const stocked = isAvailable(variation);
-            return (
-              <div className={stocked ? "sheet-plan" : "sheet-plan out"} key={variation.id}>
-                <div>
-                  <b>{variation.name}</b>
-                  {variation.shortDescription && <small>{variation.shortDescription}</small>}
-                  {!variation.shortDescription && <small>{stockText(variation)}</small>}
-                </div>
-                <strong>{money(variation.price)}</strong>
-                {stocked ? <button onClick={() => onOrder(product.id, variation.id)} aria-label={`Select ${variation.name} for ${money(variation.price)}`}>Select →</button> : <em>Sold out</em>}
-              </div>
-            );
-          })}
-        </div>
-        <p id="plan-picker-note" className="sheet-note">Choose your duration. Review your order before sending it on WhatsApp.</p>
-        <button className="text-btn" onClick={() => { onClose(); navigate(`/products/${product.slug}`); }}>See what’s included</button>
-      </section>
-    </div>
-  );
+function Products({ store, ctx, slug, addToCart, cart, navigate, isCatalogLoading }) {
+  if (slug) return isCatalogLoading ? <section className="section page-top"><ProductSkeletonGrid /></section> : <ProductDetails key={slug} product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} addToCart={addToCart} cart={cart} navigate={navigate} />;
+  return <Catalog page ctx={ctx} settings={store.settings} addToCart={addToCart} cart={cart} navigate={navigate} isCatalogLoading={isCatalogLoading} />;
 }
 
-function Products({ store, ctx, slug, addToCart, orderNow, navigate, isCatalogLoading }) {
-  if (slug) return isCatalogLoading ? <section className="section page-top"><ProductSkeletonGrid /></section> : <ProductDetails key={slug} product={ctx.products.find((p) => p.slug === slug)} ctx={ctx} addToCart={addToCart} navigate={navigate} />;
-  return <Catalog page ctx={ctx} settings={store.settings} orderNow={orderNow} navigate={navigate} isCatalogLoading={isCatalogLoading} />;
-}
-
-function ProductDetails({ product, ctx, addToCart, navigate }) {
+function ProductDetails({ product, ctx, addToCart, cart = [], navigate }) {
   const [variationId, setVariationId] = useState(product?.variations.find((v) => isAvailable(v))?.id || product?.variations[0]?.id);
   const [quantity, setQuantity] = useState(1);
+  const [added, setAdded] = useState(false);
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
   const selected = product.variations.find((v) => v.id === variationId);
-  const canBuy = product.active && isAvailable(selected);
-  const maxQuantity = stockLimit(selected);
-  const buy = () => { if (addToCart(product.id, selected.id, quantity)) navigate("/cart"); };
+  const inCart = cart.find(item => item.productId === product.id && item.variationId === selected?.id)?.quantity || 0;
+  const maxQuantity = Math.max(0, stockLimit(selected) - inCart);
+  const canBuy = product.active && isAvailable(selected) && maxQuantity > 0;
   return (
     <section className="detail page-top">
       <div className="detail-image image-wrap">
@@ -422,15 +347,16 @@ function ProductDetails({ product, ctx, addToCart, navigate }) {
           );
         })}</div>
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button disabled={quantity >= maxQuantity} onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}>+</button></div>
-        <div className="actions"><button disabled={!canBuy} onClick={() => addToCart(product.id, selected.id, quantity)}>Add to Cart</button><button disabled={!canBuy} className="ghost" onClick={buy}>Buy Now</button></div>
+        <div className="actions"><button disabled={!canBuy} onClick={() => { if (addToCart(product.id, selected.id, quantity)) setAdded(true); }}>Add to cart</button>{cart.length > 0 && <button className="ghost" onClick={() => navigate("/cart")}>View cart</button>}</div>
+        {added && <p className="detail-added" role="status">Added to cart. You can keep shopping or open your cart.</p>}
       </div>
     </section>
   );
 }
 
-function Categories({ ctx, slug, navigate, store, addToCart, orderNow, isCatalogLoading }) {
+function Categories({ ctx, slug, navigate, store, addToCart, cart, isCatalogLoading }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
-  if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} orderNow={orderNow} navigate={navigate} />}</section>;
+  if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} cart={cart} navigate={navigate} />}</section>;
   return <section className="section page-top"><h1>Categories</h1><CategoryGrid categories={ctx.categories} navigate={navigate} /></section>;
 }
 
@@ -447,7 +373,7 @@ function OfferGrid({ offers, settings }) {
   return <StoreOffers offers={offers} settings={settings} />;
 }
 
-function Cart({ cartLines, setCart, store, navigate }) {
+function Cart({ cartLines, setCart, store, goBack }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
@@ -472,7 +398,7 @@ function Cart({ cartLines, setCart, store, navigate }) {
         <h1>Your Cart</h1>
       </div>
       {!cartLines.length ? (
-        <Empty title="Your cart is empty" action={() => navigate("/products")} />
+        <Empty title="Your cart is empty" action={goBack} />
       ) : (
         <div className="cart-layout">
           <div className="cart-items-list">
@@ -553,6 +479,7 @@ function Cart({ cartLines, setCart, store, navigate }) {
             >
               Order on WhatsApp →
             </a>
+            <button className="continue-shopping" onClick={goBack}><Icon name="back" size={17} /> Continue shopping</button>
             <p className="summary-guarantee">
               Review your plan with us on WhatsApp before payment.
             </p>
