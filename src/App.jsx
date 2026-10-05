@@ -361,7 +361,19 @@ function Categories({ ctx, slug, navigate, store, addToCart, cart, isCatalogLoad
 }
 
 function Offers({ ctx, store, timerTick, isCatalogLoading }) {
-  return <section className="section page-top"><h1>Offers</h1>{isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} />}</section>;
+  return (
+    <section className="section page-top offers-page">
+      <div className="offers-hero">
+        <div>
+          <span>Limited deals</span>
+          <h1>Today&apos;s best offers</h1>
+          <p>Special bundles and discounted plans ready to order on WhatsApp.</p>
+        </div>
+        <strong>{ctx.activeOffers.length} live {ctx.activeOffers.length === 1 ? "offer" : "offers"}</strong>
+      </div>
+      {isCatalogLoading ? <ProductSkeletonGrid /> : <OfferGrid offers={ctx.activeOffers} settings={store.settings} timerTick={timerTick} />}
+    </section>
+  );
 }
 
 function ProductSkeletonGrid() {

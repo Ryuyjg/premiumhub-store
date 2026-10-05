@@ -145,9 +145,9 @@ export function StoreProductCard({ product, category, addToCart, cart = [], navi
 export function StoreOffers({ offers, settings }) {
   return <div className="shop-offer-grid">{offers.map(offer => (
     <article className="shop-offer" key={offer.id}>
-      <div className="offer-identity">{offer.image && <img src={offer.image} alt="" width="48" height="48" loading="lazy" />}<div><h2>{offer.title}</h2>{offer.itemName && <small>{offer.itemName}</small>}</div></div>
+      <div className="offer-identity">{offer.image && <img src={offer.image} alt="" width="78" height="78" loading="lazy" />}<div><small>Special offer</small><h2>{offer.title}</h2>{offer.itemName && <strong>{offer.itemName}</strong>}</div></div>
       <p>{offer.description}</p>
-      <div className="offer-bottom"><strong>{money(offer.price)}{offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}</strong><a href={whatsappUrl(settings, `Hello Premium Hub, I’d like the ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} offer for ${money(offer.price)}. Please confirm availability and payment details.`)} target="_blank" rel="noopener noreferrer">Order on WhatsApp <Icon name="arrow" size={16} /></a></div>
+      <div className="offer-bottom"><div><strong>{money(offer.price)}</strong>{offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}</div><a href={whatsappUrl(settings, `Hello Premium Hub, I’d like the ${offer.title}${offer.itemName ? ` (${offer.itemName})` : ""} offer for ${money(offer.price)}. Please confirm availability and payment details.`)} target="_blank" rel="noopener noreferrer">Order this offer <Icon name="arrow" size={17} /></a></div>
     </article>
   ))}</div>;
 }
