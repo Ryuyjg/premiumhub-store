@@ -98,7 +98,7 @@ function OfferHighlight({ offers = [], navigate }) {
       <div className="offer-highlight-list">
         {visible.map(offer => (
           <button className="offer-highlight-item" key={offer.id} onClick={() => navigate("/offers")}>
-            {offer.image?.trim() ? <img src={offer.image} alt="" width="54" height="54" loading="eager" decoding="async" /> : <i aria-hidden="true">%</i>}
+            {/combo|heavy/i.test(offer.title || "") ? <OfferFallback title={offer.title} /> : offer.image?.trim() ? <img src={offer.image} alt="" width="54" height="54" loading="eager" decoding="async" /> : <OfferFallback title={offer.title} />}
             <span>
               <b>{offer.title}</b>
               {offer.description && <small>{offer.description}</small>}
@@ -110,6 +110,14 @@ function OfferHighlight({ offers = [], navigate }) {
       </div>
     </section>
   );
+}
+
+function OfferFallback({ title }) {
+  const combo = /combo|heavy/i.test(title || "");
+  if (combo) {
+    return <i className="combo-offer-visual" aria-label="Netflix and Prime combo"><em>N</em><em>Prime</em></i>;
+  }
+  return <i className="deal-offer-visual" aria-label="Offer">%</i>;
 }
 
 export function StoreProductCard({ product, category, addToCart, cart = [], navigate, selectedVariationId, onPlanChange }) {

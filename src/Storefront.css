@@ -38,7 +38,12 @@ html:has(.storefront), body:has(.storefront) { overflow-x: clip; }
 .offer-highlight-item { min-width: 0; display: grid; grid-template-columns: 54px 1fr auto; align-items: center; gap: 7px 12px; padding: 12px; border: 1px solid #bbf7d0; border-radius: 10px; background: #fff; color: var(--shop-ink); text-align: left; }
 .offer-highlight-item:hover { background: #f8fffb; }
 .offer-highlight-item img, .offer-highlight-item i { width: 54px; height: 54px; object-fit: cover; border-radius: 9px; background: #f4f6fa; }
-.offer-highlight-item i { display: grid; place-items: center; background: #128451; color: #fff; font-style: normal; font-size: 24px; font-weight: 850; }
+.offer-highlight-item i { display: grid; place-items: center; color: #fff; font-style: normal; font-weight: 850; }
+.deal-offer-visual { background: #128451; font-size: 24px; }
+.combo-offer-visual { grid-template-columns: 1fr; gap: 3px; padding: 6px; background: linear-gradient(135deg,#111827,#0f172a); }
+.combo-offer-visual em { display: grid; place-items: center; min-width: 0; height: 19px; border-radius: 5px; font-style: normal; font-weight: 850; line-height: 1; }
+.combo-offer-visual em:first-child { background: #e50914; font-size: 15px; }
+.combo-offer-visual em:last-child { background: #00a8e1; font-size: 8px; }
 .offer-highlight-item span { min-width: 0; display: grid; gap: 3px; }
 .offer-highlight-item b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--shop-ink); font-size: 13px; font-weight: 800; }
 .offer-highlight-item small { display: -webkit-box; overflow: hidden; color: var(--shop-muted); font-size: 11px; line-height: 1.35; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
