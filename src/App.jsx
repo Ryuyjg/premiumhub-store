@@ -63,14 +63,14 @@ function App() {
   const [cart, setCart] = useState(loadCart);
   const [route, setRoute] = useState(currentRoute);
   const [adminAuthed, setAdminAuthed] = useState(false);
-  const [dataStatus, setDataStatus] = useState("Loading catalog...");
+  const [dataStatus, setDataStatus] = useState("Refreshing catalog...");
   const [saveStatus, setSaveStatus] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
   const isCatalogLoading = dataStatus === "Loading catalog...";
 
   useEffect(() => { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {} }, [cart]);
   useEffect(() => {
-    fetch(`/api/catalog?_t=${Date.now()}`, { cache: "no-store" })
+    fetch("/api/catalog")
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
       .then((data) => {
         if (data && Array.isArray(data.products)) {

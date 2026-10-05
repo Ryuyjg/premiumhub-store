@@ -1,12 +1,11 @@
-import { getCatalog, isAdmin, readJson, saveCatalog, sendJson } from "./_shared.js";
+import { getCatalog, isAdmin, publicCatalog, readJson, saveCatalog, sendJson } from "./_shared.js";
 
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
-      return sendJson(res, await getCatalog(), 200, {
-        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
-        Pragma: "no-cache",
-        Expires: "0",
+      const catalog = await getCatalog();
+      return sendJson(res, isAdmin(req) ? catalog : publicCatalog(catalog), 200, {
+        "Cache-Control": isAdmin(req) ? "no-store" : "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
       });
     }
 

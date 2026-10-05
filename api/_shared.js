@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { seedData } from "../src/storeData.js";
 
 const CATALOG_KEY = "catalog";
+const LARGE_DATA_IMAGE_LENGTH = 60000;
 
 export function sendJson(res, response, status = 200, headers = {}) {
   res.statusCode = status;
@@ -119,6 +120,39 @@ export async function getCatalog() {
   } catch {
     return seedData;
   }
+}
+
+function compactImage(value, label = "Premium Hub") {
+  if (typeof value !== "string") return value;
+  if (!value.startsWith("data:image/") || value.length <= LARGE_DATA_IMAGE_LENGTH) return value;
+  const text = String(label || "Premium Hub").trim().slice(0, 16) || "Premium Hub";
+  const hue = [...text].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
+  const background = `hsl(${hue} 72% 38%)`;
+  const safeText = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+  return `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"><rect width="160" height="160" rx="28" fill="${background}"/><text x="80" y="84" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800" fill="#fff">${safeText}</text></svg>`)}`;
+}
+
+export function publicCatalog(data) {
+  return {
+    ...data,
+    settings: {
+      ...data.settings,
+      logoImage: compactImage(data.settings?.logoImage, data.settings?.siteName),
+    },
+    categories: Array.isArray(data.categories)
+      ? data.categories.map((category) => ({ ...category, image: compactImage(category.image, category.name) }))
+      : [],
+    products: Array.isArray(data.products)
+      ? data.products.map((product) => ({ ...product, image: compactImage(product.image, product.name) }))
+      : [],
+    offers: Array.isArray(data.offers)
+      ? data.offers.map((offer) => ({ ...offer, image: compactImage(offer.image, offer.itemName || offer.title) }))
+      : [],
+  };
 }
 
 export async function saveCatalog(data) {
