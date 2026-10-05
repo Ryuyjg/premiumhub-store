@@ -110,8 +110,8 @@ function OfferHighlight({ offers = [], ctx, addToCart, navigate }) {
             <span className="offer-highlight-copy">
               <b>{offer.title}</b>
               {offer.itemName && <strong>{offer.itemName}</strong>}
+              {offer.description && <small className="offer-highlight-description">{offer.description}</small>}
             </span>
-            {offer.description && <p className="offer-highlight-description">{offer.description}</p>}
             <span className="offer-highlight-price">
               <strong>{money(offer.price)}</strong>
               {offer.originalPrice > offer.price && <s>{money(offer.originalPrice)}</s>}
