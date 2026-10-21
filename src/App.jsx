@@ -59,32 +59,69 @@ function currentRoute() {
 }
 
 function App() {
+  const hasLocalStore = useMemo(() => {
+    try {
+      const saved = localStorage.getItem(STORE_KEY);
+      if (!saved) return false;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed?.products) && parsed.products.length > 0;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const [store, setStore] = useState(loadStore);
   const [cart, setCart] = useState(loadCart);
   const [route, setRoute] = useState(currentRoute);
   const [adminAuthed, setAdminAuthed] = useState(false);
-  const [dataStatus, setDataStatus] = useState("Refreshing catalog...");
+  const [dataStatus, setDataStatus] = useState(() => hasLocalStore ? "Refreshing catalog..." : "Loading catalog...");
   const [saveStatus, setSaveStatus] = useState("");
   const [timerTick, setTimerTick] = useState(() => Date.now());
   const isCatalogLoading = dataStatus === "Loading catalog...";
 
   useEffect(() => { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch {} }, [cart]);
   useEffect(() => {
-    fetch("/api/catalog")
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
-      .then((data) => {
-        if (data && Array.isArray(data.products)) {
-          if (!data.settings?.logoImage || data.settings.logoImage.startsWith("data:image")) {
-            data.settings = { ...data.settings, logoImage: "/logo-icon.png" };
-          }
-          setStore(data);
-          setSavedStore(data);
-        }
-        setDataStatus("Database connected");
+    let active = true;
+    const fetchFreshCatalog = () => {
+      fetch(`/api/catalog?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+        },
       })
-      .catch(() => {
-        setDataStatus("Using local data");
-      });
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error("Catalog API failed"))))
+        .then((data) => {
+          if (!active) return;
+          if (data && Array.isArray(data.products)) {
+            if (!data.settings?.logoImage || data.settings.logoImage.startsWith("data:image")) {
+              data.settings = { ...data.settings, logoImage: "/logo-icon.png" };
+            }
+            setStore(data);
+            setSavedStore(data);
+          }
+          setDataStatus("Database connected");
+        })
+        .catch(() => {
+          if (active) setDataStatus("Using local data");
+        });
+    };
+
+    fetchFreshCatalog();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        fetchFreshCatalog();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onVisibilityChange);
+
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onVisibilityChange);
+    };
   }, []);
   useEffect(() => {
     fetch("/api/session")
@@ -719,7 +756,27 @@ function VariationEditor({ variations, setVariations, productId }) {
         <div>
           <h4>Plan Variations & Pricing</h4>
         </div>
-        <button type="button" className="ghost" onClick={addVar}>+ Add Another Plan</button>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            className="ghost"
+            style={{ fontSize: "12px", padding: "4px 10px", fontWeight: 700 }}
+            onClick={() => setVariations(variations.map((v) => ({ ...v, inStock: true, stock: Math.max(1, stockNumber(v) || 10) })))}
+            title="Mark all plans in stock"
+          >
+            ✓ All In Stock
+          </button>
+          <button
+            type="button"
+            className="ghost"
+            style={{ fontSize: "12px", padding: "4px 10px", fontWeight: 700, color: "#ef4444", borderColor: "#fca5a5" }}
+            onClick={() => setVariations(variations.map((v) => ({ ...v, inStock: false, stock: 0 })))}
+            title="Mark all plans stock out"
+          >
+            ✕ All Stock Out
+          </button>
+          <button type="button" className="ghost" onClick={addVar}>+ Add Another Plan</button>
+        </div>
       </div>
       {!variations.length && (
         <div style={{ padding: "16px", background: "rgba(255, 107, 107, 0.12)", border: "1px solid rgba(255, 107, 107, 0.3)", borderRadius: "14px", textAlign: "center" }}>
@@ -860,13 +917,14 @@ function Field({ label, value, onChange }) {
 
 function getAdminItemStatus(item) {
   if (item.active === false) return { text: "Disabled", danger: true };
+  if (Array.isArray(item.variations) && !hasAvailableVariation(item)) return { text: "Stock Out", danger: true };
   if (item.endDate) {
     const end = parseDateBoundary(item.endDate, true);
     if (end && end < new Date()) {
       return { text: `Expired (${item.endDate})`, danger: true };
     }
   }
-  return { text: "Active", danger: false };
+  return { text: "In Stock", danger: false };
 }
 
 function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveStatus }) {

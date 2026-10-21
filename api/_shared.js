@@ -7,7 +7,11 @@ const LARGE_DATA_IMAGE_LENGTH = 60000;
 export function sendJson(res, response, status = 200, headers = {}) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0");
+  res.setHeader("CDN-Cache-Control", "no-store");
+  res.setHeader("Vercel-CDN-Cache-Control", "no-store");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   for (const [key, value] of Object.entries(headers)) {
     res.setHeader(key, value);
   }
@@ -80,45 +84,27 @@ export async function supabaseRequest(path, options = {}) {
   return response.json();
 }
 
-export async function getCatalog() {
+let memoryCatalog = null;
+let memoryCatalogTime = 0;
+const MEMORY_CACHE_MS = 1500;
+
+export async function getCatalog(forceFresh = false) {
+  const now = Date.now();
+  if (!forceFresh && memoryCatalog && (now - memoryCatalogTime < MEMORY_CACHE_MS)) {
+    return memoryCatalog;
+  }
   try {
     const rows = await supabaseRequest(`store_documents?key=eq.${CATALOG_KEY}&select=data`);
     if (rows?.[0]?.data) {
       const data = rows[0].data;
-      let repaired = false;
-      if (Array.isArray(data.products)) {
-        data.products = data.products.map((p) => {
-          if (!p.variations || p.variations.length === 0) {
-            repaired = true;
-            const price = p.name && p.name.toLowerCase().includes("capcut") ? 299 : 199;
-            p.variations = [
-              {
-                id: `${p.id}-var-1`,
-                name: "1 Month",
-                price: price,
-                originalPrice: price + 100,
-                stock: 10,
-                inStock: true,
-                shortDescription: p.shortDescription || "Full Access • Fast Delivery",
-                sku: `${(p.name || "PLAN").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6)}-1`,
-                order: 1,
-              },
-            ];
-            p.stock = 10;
-            p.inStock = true;
-          }
-          return p;
-        });
-      }
-      if (repaired) {
-        await saveCatalog(data);
-      }
+      memoryCatalog = data;
+      memoryCatalogTime = Date.now();
       return data;
     }
     await saveCatalog(seedData);
     return seedData;
   } catch {
-    return seedData;
+    return memoryCatalog || seedData;
   }
 }
 
@@ -161,5 +147,8 @@ export async function saveCatalog(data) {
     headers: { Prefer: "resolution=merge-duplicates,return=representation" },
     body: JSON.stringify({ key: CATALOG_KEY, data }),
   });
-  return rows?.[0]?.data || data;
+  const saved = rows?.[0]?.data || data;
+  memoryCatalog = saved;
+  memoryCatalogTime = Date.now();
+  return saved;
 }
