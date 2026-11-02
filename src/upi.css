@@ -1,0 +1,237 @@
+/* ── UPI Checkout ───────────────────────────────────────────────── */
+.upi-checkout-wrap {
+  max-width: 480px;
+  margin: 32px auto;
+}
+
+.upi-checkout {
+  background: var(--card, #ffffff);
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 28px 24px 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+}
+
+.upi-checkout-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.upi-checkout-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.upi-checkout-header p {
+  color: #64748b;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* UPI App buttons */
+.upi-apps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.upi-app-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1e293b;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.upi-app-btn:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+  transform: translateY(-2px);
+}
+.upi-app-btn:active { transform: scale(0.97); }
+
+.upi-app-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+/* I've Paid section */
+.upi-paid-section {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.upi-paid-hint {
+  font-size: 0.85rem;
+  color: #166534;
+  margin: 0 0 10px;
+}
+.upi-paid-btn {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+.upi-paid-btn:hover { background: #15803d; }
+
+/* UPI note */
+.upi-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 14px 0 0;
+}
+
+/* ── UPI Result states ───────────────────────────────────────────── */
+.upi-result {
+  text-align: center;
+  padding: 40px 28px;
+  border-radius: 20px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+}
+.upi-result-icon { font-size: 3rem; display: block; margin-bottom: 12px; }
+.upi-result h3 { font-size: 1.3rem; font-weight: 700; margin: 0 0 10px; }
+.upi-result p { color: #64748b; margin: 0 0 16px; }
+.upi-order-ref { font-size: 0.78rem; color: #94a3b8; display: block; margin-top: 8px; }
+
+.upi-success { border-color: #86efac; background: #f0fdf4; }
+.upi-success h3 { color: #15803d; }
+.upi-failed { border-color: #fca5a5; background: #fef2f2; }
+.upi-failed h3 { color: #dc2626; }
+.upi-waiting { border-color: #93c5fd; background: #eff6ff; }
+.upi-waiting h3 { color: #1d4ed8; }
+
+/* Spinner */
+.upi-spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid #bfdbfe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: upi-spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes upi-spin { to { transform: rotate(360deg); } }
+
+/* ── Admin Orders ──────────────────────────────────────────────── */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 0 24px;
+}
+
+.order-card {
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fff;
+  transition: box-shadow 0.15s;
+}
+.order-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+.order-pending { border-left: 4px solid #f59e0b; }
+.order-confirmed { border-left: 4px solid #22c55e; }
+.order-rejected { border-left: 4px solid #ef4444; opacity: 0.75; }
+
+.order-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  gap: 12px;
+}
+.order-id {
+  font-size: 0.85rem;
+  font-family: monospace;
+  color: #1e293b;
+  display: block;
+}
+.order-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+.order-total {
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+.order-status-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 99px;
+  text-transform: uppercase;
+}
+.order-status-pending  { background: #fef3c7; color: #92400e; }
+.order-status-confirmed { background: #dcfce7; color: #166534; }
+.order-status-rejected  { background: #fee2e2; color: #991b1b; }
+
+.order-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.order-item-pill {
+  font-size: 0.78rem;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-weight: 500;
+}
+
+.order-actions {
+  display: flex;
+  gap: 8px;
+}
+.order-confirm-btn {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 1;
+}
+.order-confirm-btn:hover { background: #15803d; }
+.order-reject-btn {
+  background: #fff;
+  color: #dc2626;
+  border: 1.5px solid #fca5a5;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.order-reject-btn:hover { background: #fef2f2; }
+

@@ -1,6 +1,7 @@
 import { Component, useEffect, useMemo, useState } from "react";
 import { logo, seedData } from "./storeData";
 import "./App.css";
+import "./upi.css";
 import { Catalog, Icon, StoreHeader, StoreHome, StoreOffers, StoreProductCard } from "./Storefront";
 import { money, stockNumber, stockLimit, isAvailable, stockText, hasAvailableVariation, whatsappUrl } from "./storefrontUtils";
 
@@ -430,31 +431,184 @@ function OfferGrid({ offers, settings }) {
   return <StoreOffers offers={offers} settings={settings} />;
 }
 
+const UPI_ID = "anshidop@upi";
+const MERCHANT_NAME = "Premium Hub";
+
+function upiLink(app, amount) {
+  const base = `pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${encodeURIComponent(amount.toFixed(2))}&cu=INR`;
+  if (app === "phonepe") return `phonepe://pay?${base}`;
+  if (app === "gpay") return `tez://upi/pay?${base}`;
+  if (app === "paytm") return `paytmmp://pay?${base}`;
+  return `upi://pay?${base}`;
+}
+
+function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
+  const [step, setStep] = useState("choose");
+  const [orderId, setOrderId] = useState(null);
+  const [chosenApp, setChosenApp] = useState(null);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [dots, setDots] = useState("");
+
+  useEffect(() => {
+    if (step !== "waiting") return;
+    const t = setInterval(() => setDots((d) => (d.length >= 3 ? "" : d + ".")), 500);
+    return () => clearInterval(t);
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "waiting" || !orderId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        if (data.status === "confirmed") { setStep("done"); onSuccess(); }
+        else if (data.status === "rejected") { setStep("failed"); setStatusMsg("Payment was not verified. Please contact us on WhatsApp."); }
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => { active = false; clearInterval(interval); };
+  }, [step, orderId, onSuccess]);
+
+  const handleAppClick = async (app) => {
+    setChosenApp(app);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: cartLines.map((i) => ({
+            name: i.product.name,
+            variation: i.variation.name,
+            qty: i.quantity,
+            price: i.lineTotal,
+          })),
+          total,
+          upiApp: app,
+        }),
+      });
+      const data = await res.json();
+      if (data.id) setOrderId(data.id);
+    } catch {}
+    window.location.href = upiLink(app, total);
+  };
+
+  if (step === "done") return (
+    <div className="upi-result upi-success">
+      <span className="upi-result-icon">&#x2705;</span>
+      <h3>Payment Confirmed!</h3>
+      <p>Your order has been verified. We will send your subscription details via WhatsApp shortly.</p>
+      <small className="upi-order-ref">Order ID: {orderId}</small>
+    </div>
+  );
+
+  if (step === "failed") return (
+    <div className="upi-result upi-failed">
+      <span className="upi-result-icon">&#x274C;</span>
+      <h3>Payment Not Verified</h3>
+      <p>{statusMsg}</p>
+      <button onClick={() => { setStep("choose"); setChosenApp(null); setOrderId(null); }}>Try Again</button>
+      <button className="ghost" onClick={onCancel} style={{ marginTop: 8 }}>Back to Cart</button>
+    </div>
+  );
+
+  if (step === "waiting") return (
+    <div className="upi-result upi-waiting">
+      <div className="upi-spinner" aria-hidden="true" />
+      <h3>Verifying Payment{dots}</h3>
+      <p>Please wait while we confirm your payment.</p>
+      <small className="upi-order-ref">Order ID: {orderId}</small>
+    </div>
+  );
+
+  return (
+    <div className="upi-checkout">
+      <div className="upi-checkout-header">
+        <h3>Pay with UPI</h3>
+        <p>Choose your UPI app to pay <strong>{money(total)}</strong></p>
+      </div>
+      <div className="upi-apps">
+        <button className="upi-app-btn" onClick={() => handleAppClick("phonepe")}>
+          <span className="upi-app-icon" style={{ background: "#5f259f" }}>Pe</span>
+          <span>PhonePe</span>
+        </button>
+        <button className="upi-app-btn" onClick={() => handleAppClick("gpay")}>
+          <span className="upi-app-icon" style={{ background: "#4285F4" }}>G</span>
+          <span>GPay</span>
+        </button>
+        <button className="upi-app-btn" onClick={() => handleAppClick("paytm")}>
+          <span className="upi-app-icon" style={{ background: "#002970" }}>Py</span>
+          <span>Paytm</span>
+        </button>
+        <button className="upi-app-btn" onClick={() => handleAppClick("upi")}>
+          <span className="upi-app-icon" style={{ background: "#f47920" }}>UPI</span>
+          <span>Any UPI</span>
+        </button>
+      </div>
+      {chosenApp && (
+        <div className="upi-paid-section">
+          <p className="upi-paid-hint">After paying in the app, tap below:</p>
+          <button className="upi-paid-btn" onClick={() => setStep("waiting")}>I have Paid - Verify Now</button>
+        </div>
+      )}
+      <button className="ghost" onClick={onCancel} style={{ marginTop: 12, width: "100%" }}>Back to cart</button>
+      <p className="upi-note">Paying to: <strong>{UPI_ID}</strong> ({MERCHANT_NAME})</p>
+    </div>
+  );
+}
+
 function Cart({ cartLines, setCart, store, goBack }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const orderReady = cartLines.length > 0 && cartLines.every((item) => item.purchasable);
+  const [showUpi, setShowUpi] = useState(false);
+  const [paymentDone, setPaymentDone] = useState(false);
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
   const updateQty = (productId, variationId, nextQty, maxStock) => {
     const validQty = Math.max(1, Math.min(Number.isFinite(maxStock) ? maxStock : Infinity, nextQty));
-    setCart((cart) =>
-      cart.map((c) =>
-        c.productId === productId && c.variationId === variationId
-          ? { ...c, quantity: validQty }
-          : c
-      )
-    );
+    setCart((cart) => cart.map((c) => c.productId === productId && c.variationId === variationId ? { ...c, quantity: validQty } : c));
   };
 
   const removeItem = (productId, variationId) => {
     setCart((cart) => cart.filter((c) => !(c.productId === productId && c.variationId === variationId)));
   };
 
+  if (showUpi && orderReady) {
+    return (
+      <section className="section page-top cart-page">
+        <div className="section-head"><h1>Complete Payment</h1></div>
+        <div className="upi-checkout-wrap">
+          <UpiPaymentCheckout
+            cartLines={cartLines}
+            total={total}
+            store={store}
+            onSuccess={() => { setCart([]); setPaymentDone(true); setShowUpi(false); }}
+            onCancel={() => setShowUpi(false)}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  if (paymentDone) {
+    return (
+      <section className="section page-top cart-page">
+        <div className="upi-result upi-success" style={{ maxWidth: 480, margin: "60px auto" }}>
+          <span className="upi-result-icon">&#x1F389;</span>
+          <h3>Order Complete!</h3>
+          <p>Your payment was confirmed. We will deliver your subscription details on WhatsApp soon.</p>
+          <button onClick={goBack} style={{ marginTop: 16 }}>Back to Store</button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="section page-top cart-page">
-      <div className="section-head">
-        <h1>Your Cart</h1>
-      </div>
+      <div className="section-head"><h1>Your Cart</h1></div>
       {!cartLines.length ? (
         <Empty title="Your cart is empty" action={goBack} />
       ) : (
@@ -471,90 +625,57 @@ function Cart({ cartLines, setCart, store, goBack }) {
                     {item.variation.shortDescription && <small>{item.variation.shortDescription}</small>}
                     {!item.purchasable && <small className="danger">Currently out of stock</small>}
                   </div>
-
                   <div className="cart-qty-control">
-                    <button
-                      type="button"
-                      className="qty-btn"
-                      disabled={item.quantity <= 1}
-                      onClick={() => updateQty(item.productId, item.variationId, item.quantity - 1, maxStock)}
-                    >
-                      −
-                    </button>
+                    <button type="button" className="qty-btn" disabled={item.quantity <= 1} onClick={() => updateQty(item.productId, item.variationId, item.quantity - 1, maxStock)}>-</button>
                     <span className="qty-val">{item.quantity}</span>
-                    <button
-                      type="button"
-                      className="qty-btn"
-                      disabled={Number.isFinite(maxStock) && item.quantity >= maxStock}
-                      onClick={() => updateQty(item.productId, item.variationId, item.quantity + 1, maxStock)}
-                    >
-                      +
-                    </button>
+                    <button type="button" className="qty-btn" disabled={Number.isFinite(maxStock) && item.quantity >= maxStock} onClick={() => updateQty(item.productId, item.variationId, item.quantity + 1, maxStock)}>+</button>
                   </div>
-
                   <div className="cart-item-pricing">
                     <strong className="cart-item-total">{money(item.lineTotal)}</strong>
-                    {item.quantity > 1 && (
-                      <small className="cart-unit-hint">({money(item.unitPrice)} each)</small>
-                    )}
+                    {item.quantity > 1 && <small className="cart-unit-hint">({money(item.unitPrice)} each)</small>}
                   </div>
-
-                  <button
-                    type="button"
-                    className="cart-remove-btn"
-                    title="Remove item"
-                    onClick={() => removeItem(item.productId, item.variationId)}
-                  >
-                    ✕
-                  </button>
+                  <button type="button" className="cart-remove-btn" title="Remove item" onClick={() => removeItem(item.productId, item.variationId)}>x</button>
                 </div>
               );
             })}
           </div>
-
           <aside className="summary cart-summary-card">
             <h3>Order Summary</h3>
             <div className="summary-line">
               <span>Items ({cartLines.reduce((s, i) => s + i.quantity, 0)})</span>
               <strong>{money(total)}</strong>
             </div>
-            <div className="summary-line">
-              <span>Delivery</span>
-              <span className="free-badge">Via WhatsApp</span>
-            </div>
+            <div className="summary-line"><span>Delivery</span><span className="free-badge">Instant Digital</span></div>
             <hr className="summary-divider" />
-            <div className="summary-line total-line">
-              <span>Total</span>
-              <strong>{money(total)}</strong>
-            </div>
-            <a
+            <div className="summary-line total-line"><span>Total</span><strong>{money(total)}</strong></div>
+            <button
               className={orderReady ? "order-btn full-btn" : "order-btn full-btn disabled"}
+              disabled={!orderReady}
+              onClick={() => orderReady && setShowUpi(true)}
+              style={{ background: "linear-gradient(135deg, #5f259f 0%, #4285F4 100%)", border: "none" }}
+            >
+              Pay with UPI
+            </button>
+            <a
+              className={orderReady ? "order-btn full-btn ghost" : "order-btn full-btn ghost disabled"}
               href={orderReady ? whatsappUrl(store.settings, message) : undefined}
               aria-disabled={!orderReady}
               tabIndex={orderReady ? 0 : -1}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={(event) => {
-                if (!orderReady) {
-                  event.preventDefault();
-                  return;
-                }
-                setCart([]);
-              }}
+              onClick={(event) => { if (!orderReady) { event.preventDefault(); return; } setCart([]); }}
+              style={{ marginTop: 8, textAlign: "center" }}
             >
-              Order on WhatsApp →
+              Order on WhatsApp
             </a>
             <button className="continue-shopping" onClick={goBack}><Icon name="back" size={17} /> Continue shopping</button>
-            <p className="summary-guarantee">
-              Review your plan with us on WhatsApp before payment.
-            </p>
+            <p className="summary-guarantee">Secure UPI payment - Zero fees - Instant delivery</p>
           </aside>
         </div>
       )}
     </section>
   );
 }
-
 function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
   const [tab, setTab] = useState("products");
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;

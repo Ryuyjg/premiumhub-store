@@ -1,3 +1,39 @@
+-- ─── Orders table (UPI payment gateway) ───────────────────────────────────────
+create table if not exists public.orders (
+  id text primary key,
+  customer_name text not null default 'Customer',
+  items jsonb not null default '[]',
+  total numeric not null default 0,
+  upi_app text not null default 'upi',
+  status text not null default 'pending'
+    check (status in ('pending', 'confirmed', 'rejected')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists orders_status_idx on public.orders (status);
+create index if not exists orders_created_at_idx on public.orders (created_at desc);
+
+alter table public.orders enable row level security;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'orders'
+      and policyname = 'No public direct access'
+  ) then
+    create policy "No public direct access"
+    on public.orders
+    for all
+    using (false)
+    with check (false);
+  end if;
+end;
+$$;
+
+-- ─── Store documents ───────────────────────────────────────────────────────────
 create table if not exists public.store_documents (
   key text primary key,
   data jsonb not null,
