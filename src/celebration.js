@@ -71,3 +71,4 @@ export function triggerPaymentConfetti() {
     console.warn("Confetti animation unavailable:", err);
   }
 }
+

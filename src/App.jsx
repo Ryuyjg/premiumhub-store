@@ -223,6 +223,7 @@ function App() {
   const props = { store, ctx, cartLines, cart, setCart, addToCart, navigate, goBack, updateStore, adminAuthed, setAdminAuthed, dataStatus, saveStatus, setSaveStatus, setDataStatus, timerTick, isCatalogLoading };
   return (
     <div className={route.startsWith("/admin") ? "admin-app" : "storefront"}>
+      {!route.startsWith("/admin") && <TopAnnouncementBar settings={store.settings} />}
       <Header settings={store.settings} cartCount={cartCount} navigate={navigate} goBack={goBack} route={route} />
       <main className={showStickyCart ? "with-sticky-cart" : ""}>
         <RouteErrorBoundary route={route}>
@@ -329,6 +330,116 @@ function hydrateCart(cart, ctx) {
   }).filter(Boolean);
 }
 
+
+function TopAnnouncementBar({ settings }) {
+  const [closed, setClosed] = useState(false);
+  if (closed || settings?.showAnnouncement === false || !settings?.announcementText?.trim()) return null;
+  return (
+    <aside className="top-announcement-bar" role="banner">
+      <div className="announcement-content">
+        <span className="announcement-badge">FLASH SALE</span>
+        <span className="announcement-text">{settings.announcementText}</span>
+      </div>
+      <button
+        type="button"
+        className="announcement-close-btn"
+        onClick={() => setClosed(true)}
+        aria-label="Dismiss banner"
+      >
+        ✕
+      </button>
+    </aside>
+  );
+}
+
+function HowItWorks() {
+  const steps = [
+    {
+      num: "01",
+      icon: "📱",
+      title: "Choose Your Plan",
+      desc: "Select your favorite OTT, AI or digital tool subscription and choose your duration.",
+    },
+    {
+      num: "02",
+      icon: "⚡",
+      title: "Fast UPI Payment",
+      desc: "Pay in 5 seconds via PhonePe, GPay, Paytm or scan QR with zero extra fee.",
+    },
+    {
+      num: "03",
+      icon: "🚀",
+      title: "Instant Delivery & Warranty",
+      desc: "Receive login credentials directly on WhatsApp with 100% replacement guarantee.",
+    },
+  ];
+
+  return (
+    <section className="how-it-works-section">
+      <div className="section-title-wrap">
+        <span className="section-pill">HOW IT WORKS</span>
+        <h2>Get Your Subscription in 3 Simple Steps</h2>
+        <p>Zero complicated setups. Verified delivery directly to your WhatsApp.</p>
+      </div>
+      <div className="how-steps-grid">
+        {steps.map((s) => (
+          <div key={s.num} className="how-step-card">
+            <div className="how-step-header">
+              <span className="how-step-icon">{s.icon}</span>
+              <span className="how-step-num">{s.num}</span>
+            </div>
+            <h3>{s.title}</h3>
+            <p>{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SmartFaq() {
+  const [openIndex, setOpenIndex] = useState(null);
+
+  // Structural FAQ container with minimal placeholder ready for user questions
+  const faqs = [
+    {
+      q: "Frequently Asked Questions",
+      a: "Our support team is available 24/7 on WhatsApp (+91 7012958322) to assist you with any questions about plans, delivery, or warranty.",
+    },
+  ];
+
+  return (
+    <section className="smart-faq-section" id="faq">
+      <div className="section-title-wrap">
+        <span className="section-pill">NEED HELP?</span>
+        <h2>Frequently Asked Questions</h2>
+        <p>Everything you need to know about our digital subscriptions.</p>
+      </div>
+      <div className="faq-accordion">
+        {faqs.map((f, i) => {
+          const isOpen = openIndex === i;
+          return (
+            <div key={i} className={`faq-item ${isOpen ? "open" : ""}`}>
+              <button
+                type="button"
+                className="faq-question-btn"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+              >
+                <span>{f.q}</span>
+                <span className="faq-toggle-icon">{isOpen ? "−" : "+"}</span>
+              </button>
+              {isOpen && (
+                <div className="faq-answer-content">
+                  <p>{f.a}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 function Header(props) {
   if (!props.route.startsWith("/admin")) return <StoreHeader {...props} />;
   return <header className="site-header"><button className="brand" onClick={() => props.navigate("/")}>{props.settings.siteName}</button></header>;
@@ -339,9 +450,16 @@ function StickyCartButton({ count, total, navigate }) {
 }
 
 function Home(props) {
-  return <StoreHome {...props} />;
+  return (
+    <>
+      <StoreHome {...props} />
+      <div className="shop-container" style={{ paddingTop: 0 }}>
+        <HowItWorks />
+        <SmartFaq />
+      </div>
+    </>
+  );
 }
-
 function CategoryGrid({ categories, navigate }) {
   return <div className="category-grid">{categories.map((category) => <button className="category-card" key={category.id} onClick={() => navigate(`/categories/${category.slug}`)}><img src={category.image} alt={category.name} loading="lazy" decoding="async" /><strong>{category.name}</strong><span>{category.description}</span></button>)}</div>;
 }
@@ -535,7 +653,13 @@ function getUpiLink(app, amount) {
 }
 
 function OrderCompletedClaimScreen({ orderId, items, total, onBackToStore }) {
-  useEffect(() => { playSuccessChime(); triggerPaymentConfetti(); }, []);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  useEffect(() => {
+    playSuccessChime();
+    triggerPaymentConfetti();
+  }, []);
+
   const itemsList = Array.isArray(items) ? items : [];
   const itemsText = itemsList
     .map(
@@ -589,6 +713,15 @@ function OrderCompletedClaimScreen({ orderId, items, total, onBackToStore }) {
         <span>Chat on WhatsApp to Receive Credentials</span>
       </a>
 
+      {/* 📄 Official Warranty Receipt Button */}
+      <button
+        type="button"
+        className="receipt-action-btn"
+        onClick={() => setShowReceiptModal(true)}
+      >
+        📄 View & Download Official Warranty Receipt
+      </button>
+
       <div className="claim-support-note">
         Support Number: <strong className="claim-support-phone">{SUPPORT_PHONE}</strong>
         <br />
@@ -600,15 +733,78 @@ function OrderCompletedClaimScreen({ orderId, items, total, onBackToStore }) {
           type="button"
           onClick={onBackToStore}
           className="ghost"
-          style={{ marginTop: 20, fontSize: "0.88rem" }}
+          style={{ marginTop: 16, fontSize: "0.88rem" }}
         >
           &larr; Continue Shopping
         </button>
       )}
+
+      {/* ── Official Printable Warranty Receipt Modal ── */}
+      {showReceiptModal && (
+        <div className="receipt-modal-backdrop" onClick={() => setShowReceiptModal(false)}>
+          <div className="receipt-paper" onClick={(e) => e.stopPropagation()}>
+            <div className="receipt-header">
+              <span>Official Warranty Certificate</span>
+              <h3>PREMIUM HUB</h3>
+              <small style={{ color: "#64748b" }}>Order & Warranty Receipt</small>
+            </div>
+
+            <div className="receipt-row">
+              <span>Order Ref:</span>
+              <strong>{orderId || "VERIFIED"}</strong>
+            </div>
+            <div className="receipt-row">
+              <span>Date of Purchase:</span>
+              <strong>{new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</strong>
+            </div>
+            <div className="receipt-row">
+              <span>Payment Status:</span>
+              <strong style={{ color: "#16a34a" }}>PAID & VERIFIED ✅</strong>
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px dashed #e2e8f0", margin: "12px 0" }} />
+
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: "0.8rem", color: "#64748b", textTransform: "uppercase", fontWeight: 700, display: "block", marginBottom: 6 }}>
+                Purchased Subscriptions:
+              </span>
+              {itemsList.map((item, idx) => (
+                <div key={idx} className="receipt-row">
+                  <span>{item.product?.name || item.name} ({item.variation?.name || item.variation}) x {item.quantity || item.qty || 1}</span>
+                  <strong>{money(item.lineTotal || item.price)}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="receipt-row" style={{ borderTop: "1.5px solid #0f172a", paddingTop: 8, fontSize: "1rem" }}>
+              <strong>Total Paid</strong>
+              <strong>{money(total)}</strong>
+            </div>
+
+            <div className="receipt-warranty-box">
+              <h4>🛡️ 100% Replacement Warranty</h4>
+              <p>
+                This subscription is covered under our 100% replacement guarantee throughout the validity of your plan. In case of any credential or profile issue, instant replacement is guaranteed via WhatsApp (+91 7012958322).
+              </p>
+            </div>
+
+            <button type="button" className="receipt-print-btn" onClick={() => window.print()}>
+              🖨️ Print / Save as PDF
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              style={{ width: "100%", marginTop: 8 }}
+              onClick={() => setShowReceiptModal(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
 function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
   const [step, setStep] = useState("active");
   const [orderId, setOrderId] = useState(null);
@@ -1796,6 +1992,28 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
               When turned ON, customers can pay via PhonePe, GPay, Paytm or QR. Turn OFF when away from your PC to revert to direct WhatsApp orders.
             </div>
           </div>
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", gridColumn: "1 / -1", background: "#f8fafc", padding: "14px 18px", borderRadius: 14, border: "1.5px solid #e2e8f0" }}>
+          <input
+            type="checkbox"
+            checked={draft.showAnnouncement !== false}
+            onChange={(e) => setDraft({ ...draft, showAnnouncement: e.target.checked })}
+            style={{ width: 20, height: 20, cursor: "pointer" }}
+          />
+          <div>
+            <strong style={{ fontSize: "0.95rem" }}>Show Top Flash Sale Announcement Bar</strong>
+            <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: 2 }}>
+              Displays an eye-catching announcement banner at the very top of your store.
+            </div>
+          </div>
+        </label>
+        <label style={{ gridColumn: "1 / -1" }}>
+          Announcement Bar Text
+          <input
+            value={draft.announcementText || ""}
+            onChange={(e) => setDraft({ ...draft, announcementText: e.target.value })}
+            placeholder="e.g. 🔥 FLASH SALE: Use code WELCOME10 for 10% OFF all plans | Instant Delivery"
+          />
         </label>
         <label>WhatsApp message<textarea value={draft.whatsappMessage || ""} onChange={(e) => setDraft({ ...draft, whatsappMessage: e.target.value })} /></label>
       </div>

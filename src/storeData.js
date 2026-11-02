@@ -54,6 +54,8 @@ export const seedData = {
     footerText: "Digital subscriptions delivered fast through WhatsApp.",
     instagram: "https://instagram.com/premiumhub",
     enableUpiPayment: true,
+    announcementText: "🔥 FLASH SALE: Use code WELCOME10 for 10% OFF all plans | Instant Delivery",
+    showAnnouncement: true,
   },
   categories: [
     { id: "ott", name: "OTT Subscriptions", slug: "ott-subscriptions", description: "Netflix, Prime Video, JioHotstar, SonyLIV and ZEE5 plans.", active: true, featured: true, order: 1, image: logo("OTT", "#111827") },
