@@ -469,18 +469,45 @@ function getUpiLink(app, amount) {
 }
 
 function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
-  const [step, setStep] = useState("choose");
+  const [step, setStep] = useState("active"); // "active" | "done" | "failed"
   const [orderId, setOrderId] = useState(null);
-  const [chosenApp, setChosenApp] = useState(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [showQrOnMobile, setShowQrOnMobile] = useState(false);
   const [copiedVpa, setCopiedVpa] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
-  const [dots, setDots] = useState("");
+  const [secondsLeft, setSecondsLeft] = useState(480); // 8 minutes countdown
 
   const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // Generate dynamic QR code with embedded exact amount
+  // 1. Automatically register order in database immediately on load
+  useEffect(() => {
+    let active = true;
+    fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        items: cartLines.map((i) => ({
+          name: i.product.name,
+          variation: i.variation.name,
+          qty: i.quantity,
+          price: i.lineTotal,
+        })),
+        total,
+        upiApp: isMobile ? "mobile_upi" : "qr_scan",
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (active && data.id) setOrderId(data.id);
+      })
+      .catch((err) => console.error("Auto order creation error:", err));
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 2. Generate dynamic QR code with exact amount
   useEffect(() => {
     const uri = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${encodeURIComponent(Number(total).toFixed(2))}&cu=INR&tn=Order`;
     QRCode.toDataURL(uri, {
@@ -493,17 +520,18 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
       .catch((err) => console.error("QR Code Error:", err));
   }, [total]);
 
-  // Animated dots while polling
+  // 3. Countdown timer
   useEffect(() => {
-    if (step !== "waiting") return;
-    const t = setInterval(() => setDots((d) => (d.length >= 3 ? "" : d + ".")), 500);
-    return () => clearInterval(t);
-  }, [step]);
+    if (step !== "active" || secondsLeft <= 0) return;
+    const timer = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [step, secondsLeft]);
 
-  // Poll order status when in waiting state
+  // 4. Background poller — automatically detects payment without customer clicking anything!
   useEffect(() => {
-    if (step !== "waiting" || !orderId) return;
+    if (step !== "active" || !orderId) return;
     let active = true;
+
     const poll = async () => {
       try {
         const res = await fetch(`/api/orders?id=${encodeURIComponent(orderId)}`, { cache: "no-store" });
@@ -515,67 +543,23 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
           onSuccess();
         } else if (data.status === "rejected") {
           setStep("failed");
-          setStatusMsg("Payment was not verified. Please contact us on WhatsApp.");
+          setStatusMsg("Payment was declined or timed out. Please contact us on WhatsApp.");
         }
       } catch {}
     };
 
     poll();
-    const interval = setInterval(poll, 3500);
+    const interval = setInterval(poll, 3000);
     return () => {
       active = false;
       clearInterval(interval);
     };
   }, [step, orderId, onSuccess]);
 
-  // Create order in backend and return ID
-  const ensureOrderCreated = async (appUsed = "upi") => {
-    if (orderId) return orderId;
-    try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cartLines.map((i) => ({
-            name: i.product.name,
-            variation: i.variation.name,
-            qty: i.quantity,
-            price: i.lineTotal,
-          })),
-          total,
-          upiApp: appUsed,
-        }),
-      });
-      const data = await res.json();
-      if (data.id) {
-        setOrderId(data.id);
-        return data.id;
-      }
-    } catch (err) {
-      console.error("Order creation failed:", err);
-    }
-    return null;
-  };
-
-  // Click on a mobile UPI app button
-  const handleAppClick = async (app) => {
-    setChosenApp(app);
-    await ensureOrderCreated(app);
+  // Clicking an app button on mobile opens the app directly
+  const handleAppClick = (app) => {
     const link = getUpiLink(app, total);
-
-    // Redirect to UPI app
     window.location.href = link;
-
-    // Transition to waiting state after a brief moment
-    setTimeout(() => {
-      setStep("waiting");
-    }, 1200);
-  };
-
-  // Click "I've Paid — Verify" (used for QR code on PC or manual confirm)
-  const handleManualVerify = async () => {
-    await ensureOrderCreated(chosenApp || "qr_scan");
-    setStep("waiting");
   };
 
   const copyVpa = () => {
@@ -586,12 +570,18 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
     }
   };
 
+  const formatTimer = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
   if (step === "done") {
     return (
       <div className="upi-result upi-success">
         <span className="upi-result-icon">&#x2705;</span>
-        <h3>Payment Confirmed!</h3>
-        <p>Your payment was successfully verified. We will send your subscription credentials on WhatsApp shortly.</p>
+        <h3>Payment Successful!</h3>
+        <p>Your payment has been verified. We will send your subscription credentials on WhatsApp shortly.</p>
         {orderId && <small className="upi-order-ref">Order Ref: {orderId}</small>}
       </div>
     );
@@ -601,61 +591,55 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
     return (
       <div className="upi-result upi-failed">
         <span className="upi-result-icon">&#x274C;</span>
-        <h3>Payment Not Verified</h3>
+        <h3>Payment Declined</h3>
         <p>{statusMsg || "We could not verify your payment. Please try again or reach out on WhatsApp."}</p>
-        <button className="upi-paid-cta" onClick={() => { setStep("choose"); setChosenApp(null); setOrderId(null); }}>
-          Try Again
-        </button>
-        <button className="upi-cancel-btn" onClick={onCancel}>
-          &larr; Back to Cart
+        <button type="button" className="upi-toggle-btn" onClick={onCancel} style={{ marginTop: 12 }}>
+          &larr; Return to Cart
         </button>
       </div>
     );
   }
 
-  if (step === "waiting") {
-    return (
-      <div className="upi-result upi-waiting">
-        <div className="upi-spinner" aria-hidden="true" />
-        <h3>Verifying Payment{dots}</h3>
-        <p>Checking incoming payment with bank. Please keep this screen open, it will confirm automatically.</p>
-        {orderId && <small className="upi-order-ref">Order: {orderId}</small>}
-        <button className="upi-cancel-btn" onClick={() => setStep("choose")} style={{ marginTop: 20 }}>
-          Cancel / Try Different App
-        </button>
-      </div>
-    );
-  }
-
-  // View: choose / scan
   const shouldShowQr = !isMobile || showQrOnMobile;
 
   return (
     <div className="upi-checkout">
       <div className="upi-checkout-header">
         <h3>Fast UPI Payment</h3>
-        <p>Zero transaction fee &middot; Instant confirmation</p>
+        <p>Auto-detecting payment &middot; Zero transaction fee</p>
         <div className="upi-amount-pill">
-          <span>Total:</span>
+          <span>Amount:</span>
           <strong>{money(total)}</strong>
         </div>
       </div>
 
-      {/* ── Desktop View (or Mobile with QR toggled): Show QR Code with exact amount ── */}
+      {/* ── Live Status Pulse & Countdown ── */}
+      <div style={{ textAlign: "center" }}>
+        <div className="upi-live-status">
+          <span className="upi-pulse-dot" />
+          <span>Waiting for payment...</span>
+        </div>
+        <div className="upi-timer-badge">
+          Session expires in <strong>{formatTimer(secondsLeft)}</strong>
+        </div>
+      </div>
+
+      {/* ── PC QR Code View ── */}
       {shouldShowQr && (
         <div className="upi-qr-card">
           <div className="upi-qr-image-wrap">
             {qrCodeDataUrl ? (
               <img src={qrCodeDataUrl} alt="UPI QR Code" className="upi-qr-img" />
             ) : (
-              <div style={{ width: 220, height: 220, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span>Loading QR...</span>
+              <div style={{ width: 210, height: 210, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span>Generating secure QR...</span>
               </div>
             )}
             <span className="upi-qr-badge">{money(total)}</span>
           </div>
 
-          <p className="upi-qr-hint">Scan with PhonePe, GPay, Paytm or any UPI app</p>
+          <p className="upi-qr-hint">Scan with any UPI app to pay</p>
+          <p className="upi-qr-subtext">PhonePe, Google Pay, Paytm, CRED or BHIM</p>
 
           <div className="upi-vpa-copy-row">
             <span>UPI ID: <strong>{UPI_ID}</strong></span>
@@ -666,14 +650,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </div>
       )}
 
-      {/* ── Primary Action: I've Paid (Desktop QR mode) ── */}
-      {shouldShowQr && (
-        <button type="button" className="upi-paid-cta" onClick={handleManualVerify} style={{ marginBottom: 16 }}>
-          &#x2705; I have Paid &mdash; Verify Payment
-        </button>
-      )}
-
-      {/* ── Mobile or Alternative App Buttons ── */}
+      {/* ── Mobile Direct App Buttons ── */}
       <div>
         <div className="upi-apps-label">
           {isMobile ? "Tap to Pay with UPI App" : "Or Pay Directly on this Device"}
@@ -681,7 +658,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         <div className="upi-apps-grid">
           <button
             type="button"
-            className={`upi-app-btn ${chosenApp === "phonepe" ? "selected" : ""}`}
+            className="upi-app-btn"
             onClick={() => handleAppClick("phonepe")}
           >
             <PhonePeLogo size={32} />
@@ -690,7 +667,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
 
           <button
             type="button"
-            className={`upi-app-btn ${chosenApp === "gpay" ? "selected" : ""}`}
+            className="upi-app-btn"
             onClick={() => handleAppClick("gpay")}
           >
             <GPayLogo size={32} />
@@ -699,7 +676,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
 
           <button
             type="button"
-            className={`upi-app-btn ${chosenApp === "paytm" ? "selected" : ""}`}
+            className="upi-app-btn"
             onClick={() => handleAppClick("paytm")}
           >
             <PaytmLogo size={32} />
@@ -708,7 +685,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
 
           <button
             type="button"
-            className={`upi-app-btn ${chosenApp === "upi" ? "selected" : ""}`}
+            className="upi-app-btn"
             onClick={() => handleAppClick("upi")}
           >
             <UpiLogo size={32} />
@@ -728,11 +705,14 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </button>
       )}
 
-      {/* ── Secondary verify button for mobile after tapping app ── */}
-      {isMobile && !shouldShowQr && (
-        <button type="button" className="upi-paid-cta" onClick={handleManualVerify} style={{ marginTop: 14 }}>
-          &#x2705; Already Paid? Click to Verify
-        </button>
+      <p className="upi-auto-hint">
+        Do not refresh or close this tab. Once paid, the screen confirms automatically.
+      </p>
+
+      {orderId && (
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          <small className="upi-order-ref">Session: {orderId}</small>
+        </div>
       )}
 
       <button type="button" className="upi-cancel-btn" onClick={onCancel}>

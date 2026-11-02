@@ -1,6 +1,6 @@
-/* ── UPI Checkout Modal / Card ────────────────────────────────────── */
+/* ── UPI Gateway Checkout Card ────────────────────────────────────── */
 .upi-checkout-wrap {
-  max-width: 480px;
+  max-width: 460px;
   margin: 24px auto 48px;
   padding: 0 12px;
 }
@@ -9,49 +9,96 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 24px;
-  padding: 24px 20px;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  padding: 24px 20px 20px;
+  box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.09), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .upi-checkout-header {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 .upi-checkout-header h3 {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 800;
   color: #0f172a;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   letter-spacing: -0.3px;
 }
 .upi-checkout-header p {
   color: #64748b;
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .upi-amount-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: #f1f5f9;
+  gap: 8px;
+  background: #f8fafc;
   color: #0f172a;
-  padding: 6px 16px;
+  padding: 6px 18px;
   border-radius: 99px;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 800;
   margin-top: 10px;
-  border: 1px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
 }
 
-/* ── QR Code Section (PC & Mobile Toggle) ────────────────────────── */
+/* ── Live Status Indicator (Pulse) ────────────────────────────────── */
+.upi-live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 5px 14px;
+  border-radius: 99px;
+  margin: 12px auto 6px;
+}
+
+.upi-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #2563eb;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+  animation: upi-pulse 1.8s infinite;
+}
+
+@keyframes upi-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.upi-timer-badge {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* ── QR Code Section (PC) ────────────────────────────────────────── */
 .upi-qr-card {
   background: #f8fafc;
   border: 1.5px solid #e2e8f0;
   border-radius: 20px;
-  padding: 20px 16px;
+  padding: 18px 14px;
   text-align: center;
-  margin-bottom: 20px;
+  margin: 14px 0 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -70,8 +117,8 @@
 
 .upi-qr-img {
   display: block;
-  width: 220px;
-  height: 220px;
+  width: 210px;
+  height: 210px;
   margin: 0 auto;
   border-radius: 8px;
 }
@@ -84,18 +131,23 @@
   background: #0f172a;
   color: #ffffff;
   font-size: 0.72rem;
-  font-weight: 700;
-  padding: 3px 10px;
+  font-weight: 800;
+  padding: 3px 12px;
   border-radius: 99px;
   white-space: nowrap;
-  letter-spacing: 0.4px;
 }
 
 .upi-qr-hint {
   font-size: 0.88rem;
-  font-weight: 600;
-  color: #334155;
-  margin: 16px 0 6px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 16px 0 4px;
+}
+
+.upi-qr-subtext {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 0 0 8px;
 }
 
 .upi-vpa-copy-row {
@@ -104,17 +156,16 @@
   gap: 8px;
   background: #ffffff;
   border: 1px dashed #cbd5e1;
-  padding: 5px 12px;
+  padding: 4px 12px;
   border-radius: 8px;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #475569;
-  margin-top: 6px;
 }
 .upi-vpa-copy-btn {
   background: transparent;
   border: none;
   color: #2563eb;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
@@ -123,7 +174,7 @@
 
 /* ── Mobile Apps Grid ────────────────────────────────────────────── */
 .upi-apps-label {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
   color: #94a3b8;
@@ -136,7 +187,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .upi-app-btn {
@@ -150,7 +201,7 @@
   border-radius: 16px;
   background: #ffffff;
   cursor: pointer;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #1e293b;
   transition: all 0.15s ease-in-out;
@@ -166,31 +217,12 @@
   transform: scale(0.96);
 }
 
-.upi-app-btn.selected {
-  border-color: #16a34a;
-  background: #f0fdf4;
-}
-
-/* ── Verification Action Area ────────────────────────────────────── */
-.upi-paid-cta {
-  background: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: 12px;
-  padding: 14px 20px;
-  font-size: 1rem;
-  font-weight: 800;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background 0.15s ease;
-  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
-}
-.upi-paid-cta:hover {
-  background: #15803d;
+.upi-auto-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  margin: 12px 0 4px;
+  line-height: 1.4;
 }
 
 .upi-toggle-btn {
@@ -198,12 +230,12 @@
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   color: #475569;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 8px 12px;
   cursor: pointer;
   width: 100%;
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -216,13 +248,14 @@
 .upi-cancel-btn {
   background: transparent;
   border: none;
-  color: #64748b;
-  font-size: 0.85rem;
+  color: #94a3b8;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  margin-top: 12px;
+  margin-top: 14px;
   width: 100%;
   text-align: center;
+  transition: color 0.15s;
 }
 .upi-cancel-btn:hover {
   color: #0f172a;
