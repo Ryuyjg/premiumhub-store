@@ -590,3 +590,36 @@
   margin-top: 4px;
 }
 
+
+/* ── UPI Gateway Toggle Pill (Admin) ─────────────────────────────── */
+.upi-status-pill {
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 99px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.upi-status-pill.online {
+  background: #dcfce7;
+  color: #166534;
+  border: 1.5px solid #86efac;
+}
+.upi-status-pill.online:hover {
+  background: #bbf7d0;
+  transform: translateY(-1px);
+}
+.upi-status-pill.offline {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1.5px solid #fca5a5;
+}
+.upi-status-pill.offline:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+

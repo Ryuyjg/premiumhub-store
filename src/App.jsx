@@ -1,4 +1,4 @@
-﻿import { Component, useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
 import { logo, seedData } from "./storeData";
 import "./App.css";
 import "./upi.css";
@@ -888,28 +888,49 @@ function Cart({ cartLines, setCart, store, goBack }) {
             <div className="summary-line"><span>Delivery</span><span className="free-badge">Instant Digital</span></div>
             <hr className="summary-divider" />
             <div className="summary-line total-line"><span>Total</span><strong>{money(total)}</strong></div>
-            <button
-              className={orderReady ? "order-btn full-btn" : "order-btn full-btn disabled"}
-              disabled={!orderReady}
-              onClick={() => orderReady && setShowUpi(true)}
-              style={{ background: "linear-gradient(135deg, #5f259f 0%, #4285F4 100%)", border: "none" }}
-            >
-              💳 Pay with UPI
-            </button>
-            <a
-              className={orderReady ? "order-btn full-btn ghost" : "order-btn full-btn ghost disabled"}
-              href={orderReady ? whatsappUrl(store.settings, message) : undefined}
-              aria-disabled={!orderReady}
-              tabIndex={orderReady ? 0 : -1}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(event) => { if (!orderReady) { event.preventDefault(); return; } setCart([]); }}
-              style={{ marginTop: 8, textAlign: "center" }}
-            >
-              Order on WhatsApp
-            </a>
+            {store.settings?.enableUpiPayment !== false ? (
+              <>
+                <button
+                  className={orderReady ? "order-btn full-btn" : "order-btn full-btn disabled"}
+                  disabled={!orderReady}
+                  onClick={() => orderReady && setShowUpi(true)}
+                  style={{ background: "linear-gradient(135deg, #5f259f 0%, #4285F4 100%)", border: "none" }}
+                >
+                  💳 Pay with UPI
+                </button>
+                <a
+                  className={orderReady ? "order-btn full-btn ghost" : "order-btn full-btn ghost disabled"}
+                  href={orderReady ? whatsappUrl(store.settings, message) : undefined}
+                  aria-disabled={!orderReady}
+                  tabIndex={orderReady ? 0 : -1}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => { if (!orderReady) { event.preventDefault(); return; } setCart([]); }}
+                  style={{ marginTop: 8, textAlign: "center" }}
+                >
+                  Order on WhatsApp 💬
+                </a>
+              </>
+            ) : (
+              <a
+                className={orderReady ? "order-btn full-btn" : "order-btn full-btn disabled"}
+                href={orderReady ? whatsappUrl(store.settings, message) : undefined}
+                aria-disabled={!orderReady}
+                tabIndex={orderReady ? 0 : -1}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => { if (!orderReady) { event.preventDefault(); return; } setCart([]); }}
+                style={{ textAlign: "center" }}
+              >
+                Order on WhatsApp 💬
+              </a>
+            )}
             <button className="continue-shopping" onClick={goBack}><Icon name="back" size={17} /> Continue shopping</button>
-            <p className="summary-guarantee">Secure UPI payment - Zero fees - Instant delivery</p>
+            <p className="summary-guarantee">
+              {store.settings?.enableUpiPayment !== false
+                ? "Secure UPI payment · Zero fees · Instant delivery"
+                : "Review your plan with us on WhatsApp before payment."}
+            </p>
           </aside>
         </div>
       )}
@@ -960,7 +981,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
         ))}
       </div>
       <AdminStatusMessage message={saveStatus} />
-      {tab === "orders" && <OrdersAdmin onPendingCountChange={setPendingCount} />}
+      {tab === "orders" && <OrdersAdmin store={store} updateStore={updateStore} onPendingCountChange={setPendingCount} />}
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
@@ -969,7 +990,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
   );
 }
 
-function OrdersAdmin({ onPendingCountChange }) {
+function OrdersAdmin({ store, updateStore, onPendingCountChange }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
@@ -1023,9 +1044,28 @@ function OrdersAdmin({ onPendingCountChange }) {
   return (
     <section className="admin-editor">
       <div className="section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <h2>Payment Verification</h2>
-          <small style={{ color: "#64748b" }}>Auto-refreshes every 5 seconds. Confirm payment after checking your UPI app.</small>
+          <button
+            type="button"
+            className={store.settings?.enableUpiPayment !== false ? "upi-status-pill online" : "upi-status-pill offline"}
+            onClick={() => {
+              const current = store.settings?.enableUpiPayment !== false;
+              updateStore(
+                (s) => ({
+                  ...s,
+                  settings: {
+                    ...s.settings,
+                    enableUpiPayment: !current,
+                  },
+                }),
+                `UPI Gateway turned ${!current ? "ON" : "OFF"}`
+              );
+            }}
+            title={store.settings?.enableUpiPayment !== false ? "Click to turn OFF UPI and use WhatsApp orders only" : "Click to turn ON UPI payment gateway"}
+          >
+            {store.settings?.enableUpiPayment !== false ? "🟢 UPI Gateway: ONLINE (Tap to turn OFF)" : "🔴 UPI Gateway: OFFLINE (Tap to turn ON)"}
+          </button>
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button
@@ -1474,6 +1514,20 @@ function SettingsAdmin({ store, updateStore, saveStatus }) {
         </label>
         {draft.logoImage && <div className="logo-preview"><img src={draft.logoImage} alt="Logo preview" /></div>}
         <label>Footer text<textarea value={draft.footerText || ""} onChange={(e) => setDraft({ ...draft, footerText: e.target.value })} /></label>
+        <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", gridColumn: "1 / -1", background: "#f8fafc", padding: "14px 18px", borderRadius: 14, border: "1.5px solid #e2e8f0" }}>
+          <input
+            type="checkbox"
+            checked={draft.enableUpiPayment !== false}
+            onChange={(e) => setDraft({ ...draft, enableUpiPayment: e.target.checked })}
+            style={{ width: 20, height: 20, cursor: "pointer" }}
+          />
+          <div>
+            <strong style={{ fontSize: "0.95rem" }}>Enable Instant UPI Payment Gateway</strong>
+            <div style={{ fontSize: "0.82rem", color: "#64748b", marginTop: 2 }}>
+              When turned ON, customers can pay via PhonePe, GPay, Paytm or QR. Turn OFF when away from your PC to revert to direct WhatsApp orders.
+            </div>
+          </div>
+        </label>
         <label>WhatsApp message<textarea value={draft.whatsappMessage || ""} onChange={(e) => setDraft({ ...draft, whatsappMessage: e.target.value })} /></label>
       </div>
       <div className="actions editor-actions"><AdminStatusMessage message={saveStatus} /><button onClick={save}>Save Settings</button></div>

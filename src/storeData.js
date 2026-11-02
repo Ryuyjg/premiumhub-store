@@ -53,6 +53,7 @@ export const seedData = {
     contact: "support@premiumhub.local",
     footerText: "Digital subscriptions delivered fast through WhatsApp.",
     instagram: "https://instagram.com/premiumhub",
+    enableUpiPayment: true,
   },
   categories: [
     { id: "ott", name: "OTT Subscriptions", slug: "ott-subscriptions", description: "Netflix, Prime Video, JioHotstar, SonyLIV and ZEE5 plans.", active: true, featured: true, order: 1, image: logo("OTT", "#111827") },
