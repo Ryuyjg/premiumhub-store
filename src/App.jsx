@@ -435,6 +435,8 @@ function OfferGrid({ offers, settings }) {
 
 const UPI_ID = "anshidop@upi";
 const MERCHANT_NAME = "Premium Hub";
+const SUPPORT_PHONE = "+917012958322";
+const SUPPORT_PHONE_CLEAN = "917012958322";
 
 function getUpiLink(app, amount) {
   const isAndroid = typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
@@ -468,18 +470,92 @@ function getUpiLink(app, amount) {
   return `upi://pay?${base}`;
 }
 
+function OrderCompletedClaimScreen({ orderId, items, total, onBackToStore }) {
+  const itemsList = Array.isArray(items) ? items : [];
+  const itemsText = itemsList
+    .map(
+      (i) =>
+        `- ${i.product?.name || i.name} (${i.variation?.name || i.variation || "Plan"}) x ${i.quantity || i.qty || 1} - ${money(i.lineTotal || i.price)}`
+    )
+    .join("\n");
+
+  const waMessage = `Hello Premium Hub! 🚀\nI have completed my payment on your store.\n\n📦 Order ID: ${orderId || "PAID"}\n🛍️ Items:\n${itemsText}\n💰 Total Paid: ${money(total)} (Payment Verified)\n\nPlease share my subscription login credentials here. Thank you!`;
+
+  const waUrl = `https://wa.me/${SUPPORT_PHONE_CLEAN}?text=${encodeURIComponent(waMessage)}`;
+
+  return (
+    <div className="claim-card">
+      <span className="claim-icon">🎉</span>
+      <h2 className="claim-title">Payment Confirmed & Verified!</h2>
+      <p className="claim-subtitle">
+        Your payment was received. Tap the button below to message us on WhatsApp and receive your subscription credentials immediately.
+      </p>
+
+      <div className="claim-details-box">
+        <div className="claim-order-header">
+          <span className="claim-order-id">Order Ref: {orderId || "Verified"}</span>
+          <span className="claim-verified-pill">PAID ✅</span>
+        </div>
+
+        {itemsList.map((item, idx) => (
+          <div key={idx} className="claim-item-row">
+            <span>
+              <strong>{item.product?.name || item.name}</strong> &middot; {item.variation?.name || item.variation} x {item.quantity || item.qty || 1}
+            </span>
+            <strong>{money(item.lineTotal || item.price)}</strong>
+          </div>
+        ))}
+
+        <div className="claim-total-row">
+          <span>Total Paid</span>
+          <span>{money(total)}</span>
+        </div>
+      </div>
+
+      <a
+        href={waUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="claim-wa-btn"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
+        </svg>
+        <span>Chat on WhatsApp to Receive Credentials</span>
+      </a>
+
+      <div className="claim-support-note">
+        Support Number: <strong className="claim-support-phone">{SUPPORT_PHONE}</strong>
+        <br />
+        Your order ID, products, and verified payment total will be sent automatically.
+      </div>
+
+      {onBackToStore && (
+        <button
+          type="button"
+          onClick={onBackToStore}
+          className="ghost"
+          style={{ marginTop: 20, fontSize: "0.88rem" }}
+        >
+          &larr; Continue Shopping
+        </button>
+      )}
+    </div>
+  );
+}
+
 function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
-  const [step, setStep] = useState("active"); // "active" | "done" | "failed"
+  const [step, setStep] = useState("active");
   const [orderId, setOrderId] = useState(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState("");
   const [showQrOnMobile, setShowQrOnMobile] = useState(false);
   const [copiedVpa, setCopiedVpa] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
-  const [secondsLeft, setSecondsLeft] = useState(480); // 8 minutes countdown
+  const [secondsLeft, setSecondsLeft] = useState(480);
 
   const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-  // 1. Automatically register order in database immediately on load
+  // Register order session immediately
   useEffect(() => {
     let active = true;
     fetch("/api/orders", {
@@ -507,7 +583,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
     };
   }, []);
 
-  // 2. Generate dynamic QR code with exact amount
+  // Generate dynamic QR code
   useEffect(() => {
     const uri = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${encodeURIComponent(Number(total).toFixed(2))}&cu=INR&tn=Order`;
     QRCode.toDataURL(uri, {
@@ -520,14 +596,14 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
       .catch((err) => console.error("QR Code Error:", err));
   }, [total]);
 
-  // 3. Countdown timer
+  // Session timer
   useEffect(() => {
     if (step !== "active" || secondsLeft <= 0) return;
     const timer = setInterval(() => setSecondsLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(timer);
   }, [step, secondsLeft]);
 
-  // 4. Background poller — automatically detects payment without customer clicking anything!
+  // Background poller
   useEffect(() => {
     if (step !== "active" || !orderId) return;
     let active = true;
@@ -540,7 +616,7 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         if (!active) return;
         if (data.status === "confirmed") {
           setStep("done");
-          onSuccess();
+          onSuccess({ id: orderId, items: cartLines, total });
         } else if (data.status === "rejected") {
           setStep("failed");
           setStatusMsg("Payment was declined or timed out. Please contact us on WhatsApp.");
@@ -556,7 +632,6 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
     };
   }, [step, orderId, onSuccess]);
 
-  // Clicking an app button on mobile opens the app directly
   const handleAppClick = (app) => {
     const link = getUpiLink(app, total);
     window.location.href = link;
@@ -578,12 +653,12 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
 
   if (step === "done") {
     return (
-      <div className="upi-result upi-success">
-        <span className="upi-result-icon">&#x2705;</span>
-        <h3>Payment Successful!</h3>
-        <p>Your payment has been verified. We will send your subscription credentials on WhatsApp shortly.</p>
-        {orderId && <small className="upi-order-ref">Order Ref: {orderId}</small>}
-      </div>
+      <OrderCompletedClaimScreen
+        orderId={orderId}
+        items={cartLines}
+        total={total}
+        onBackToStore={onCancel}
+      />
     );
   }
 
@@ -613,7 +688,6 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </div>
       </div>
 
-      {/* ── Live Status Pulse & Countdown ── */}
       <div style={{ textAlign: "center" }}>
         <div className="upi-live-status">
           <span className="upi-pulse-dot" />
@@ -624,7 +698,6 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </div>
       </div>
 
-      {/* ── PC QR Code View ── */}
       {shouldShowQr && (
         <div className="upi-qr-card">
           <div className="upi-qr-image-wrap">
@@ -650,7 +723,6 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </div>
       )}
 
-      {/* ── Mobile Direct App Buttons ── */}
       <div>
         <div className="upi-apps-label">
           {isMobile ? "Tap to Pay with UPI App" : "Or Pay Directly on this Device"}
@@ -694,7 +766,6 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         </div>
       </div>
 
-      {/* ── Mobile QR toggle button ── */}
       {isMobile && (
         <button
           type="button"
@@ -721,11 +792,12 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
     </div>
   );
 }
+
 function Cart({ cartLines, setCart, store, goBack }) {
   const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
   const orderReady = cartLines.length > 0 && cartLines.every((item) => item.purchasable);
   const [showUpi, setShowUpi] = useState(false);
-  const [paymentDone, setPaymentDone] = useState(false);
+  const [completedOrder, setCompletedOrder] = useState(null);
   const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
   const updateQty = (productId, variationId, nextQty, maxStock) => {
@@ -737,6 +809,22 @@ function Cart({ cartLines, setCart, store, goBack }) {
     setCart((cart) => cart.filter((c) => !(c.productId === productId && c.variationId === variationId)));
   };
 
+  if (completedOrder) {
+    return (
+      <section className="section page-top cart-page">
+        <OrderCompletedClaimScreen
+          orderId={completedOrder.id}
+          items={completedOrder.items}
+          total={completedOrder.total}
+          onBackToStore={() => {
+            setCompletedOrder(null);
+            goBack();
+          }}
+        />
+      </section>
+    );
+  }
+
   if (showUpi && orderReady) {
     return (
       <section className="section page-top cart-page">
@@ -746,22 +834,13 @@ function Cart({ cartLines, setCart, store, goBack }) {
             cartLines={cartLines}
             total={total}
             store={store}
-            onSuccess={() => { setCart([]); setPaymentDone(true); setShowUpi(false); }}
+            onSuccess={(orderData) => {
+              setCart([]);
+              setCompletedOrder(orderData);
+              setShowUpi(false);
+            }}
             onCancel={() => setShowUpi(false)}
           />
-        </div>
-      </section>
-    );
-  }
-
-  if (paymentDone) {
-    return (
-      <section className="section page-top cart-page">
-        <div className="upi-result upi-success" style={{ maxWidth: 480, margin: "60px auto" }}>
-          <span className="upi-result-icon">&#x1F389;</span>
-          <h3>Order Complete!</h3>
-          <p>Your payment was confirmed. We will deliver your subscription details on WhatsApp soon.</p>
-          <button onClick={goBack} style={{ marginTop: 16 }}>Back to Store</button>
         </div>
       </section>
     );
@@ -815,7 +894,7 @@ function Cart({ cartLines, setCart, store, goBack }) {
               onClick={() => orderReady && setShowUpi(true)}
               style={{ background: "linear-gradient(135deg, #5f259f 0%, #4285F4 100%)", border: "none" }}
             >
-              Pay with UPI
+              💳 Pay with UPI
             </button>
             <a
               className={orderReady ? "order-btn full-btn ghost" : "order-btn full-btn ghost disabled"}
