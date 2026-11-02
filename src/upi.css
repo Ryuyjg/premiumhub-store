@@ -623,3 +623,157 @@
   transform: translateY(-1px);
 }
 
+
+/* ── Coupon / Promo Code Box (Cart) ──────────────────────────────── */
+.coupon-box {
+  margin: 16px 0;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 14px;
+}
+
+.coupon-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.coupon-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: #ffffff;
+}
+.coupon-input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.coupon-apply-btn {
+  padding: 10px 18px;
+  background: #0f172a;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.coupon-apply-btn:hover {
+  background: #334155;
+}
+
+.coupon-applied-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #166534;
+}
+
+.coupon-remove-btn {
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.coupon-remove-btn:hover {
+  background: #fee2e2;
+}
+
+.coupon-error-text {
+  color: #dc2626;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 8px 0 0;
+}
+
+/* ── Bundle Cross-Sell Box (Product Page) ────────────────────────── */
+.bundle-upsell-card {
+  margin: 24px 0 16px;
+  padding: 16px;
+  background: #fdf4ff;
+  border: 1.5px solid #f0abfc;
+  border-radius: 18px;
+  position: relative;
+}
+
+.bundle-upsell-badge {
+  display: inline-block;
+  background: #a855f7;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.bundle-upsell-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bundle-upsell-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.bundle-upsell-text {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+}
+.bundle-upsell-text strong {
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+.bundle-upsell-text span {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.bundle-upsell-btn {
+  padding: 10px 18px;
+  background: #a855f7;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.bundle-upsell-btn:hover {
+  background: #9333ea;
+  transform: translateY(-1px);
+}
+.bundle-upsell-btn:active {
+  transform: scale(0.97);
+}
+

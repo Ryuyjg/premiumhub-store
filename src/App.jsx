@@ -4,6 +4,7 @@ import "./App.css";
 import "./upi.css";
 import QRCode from "qrcode";
 import { PhonePeLogo, GPayLogo, PaytmLogo, UpiLogo } from "./UpiLogos";
+import { playSuccessChime, triggerPaymentConfetti } from "./celebration";
 import { Catalog, Icon, StoreHeader, StoreHome, StoreOffers, StoreProductCard } from "./Storefront";
 import { money, stockNumber, stockLimit, isAvailable, stockText, hasAvailableVariation, whatsappUrl } from "./storefrontUtils";
 
@@ -46,7 +47,8 @@ function loadStore() {
     if (!settings.logoImage || settings.logoImage.startsWith("data:image")) {
       settings.logoImage = "/logo-icon.png";
     }
-    return { ...seedData, ...parsed, settings };
+    const coupons = Array.isArray(parsed.coupons) ? parsed.coupons : seedData.coupons;
+    return { ...seedData, ...parsed, settings, coupons };
   } catch {
     return seedData;
   }
@@ -361,6 +363,43 @@ function ProductDetails({ product, ctx, addToCart, cart = [], navigate }) {
   const [variationId, setVariationId] = useState(product?.variations.find((v) => isAvailable(v))?.id || product?.variations[0]?.id);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [bundleAdded, setBundleAdded] = useState(false);
+
+  // Smart 1-Click Frequently Bought Together Bundle
+  const addonProduct = useMemo(() => {
+    if (!product || !ctx.products) return null;
+    const nameLower = (product.name || "").toLowerCase();
+    const slugLower = (product.slug || "").toLowerCase();
+
+    // If Netflix -> specifically recommend Spotify
+    if (nameLower.includes("netflix") || slugLower.includes("netflix")) {
+      const sp = ctx.products.find((p) => p.slug?.includes("spotify") || p.name?.toLowerCase().includes("spotify"));
+      if (sp && sp.active && hasAvailableVariation(sp)) return sp;
+    }
+    // If Spotify -> recommend Netflix or YouTube
+    if (nameLower.includes("spotify") || slugLower.includes("spotify")) {
+      const nf = ctx.products.find((p) => (p.slug?.includes("netflix") || p.slug?.includes("youtube") || p.name?.toLowerCase().includes("netflix")) && hasAvailableVariation(p));
+      if (nf && nf.active) return nf;
+    }
+    // If OTT -> recommend Spotify or YouTube
+    if (product.categoryId === "ott") {
+      const sp = ctx.products.find((p) => p.categoryId === "music" && p.id !== product.id && hasAvailableVariation(p));
+      if (sp && sp.active) return sp;
+    }
+    // If AI (ChatGPT, Claude) -> recommend Canva Pro or another productivity tool
+    if (product.categoryId === "ai") {
+      const cv = ctx.products.find((p) => (p.slug?.includes("canva") || p.categoryId === "editing" || p.categoryId === "productivity") && p.id !== product.id && hasAvailableVariation(p));
+      if (cv && cv.active) return cv;
+    }
+    // Default fallback: any active popular product in another category
+    return ctx.products.find((p) => p.id !== product.id && p.active && hasAvailableVariation(p));
+  }, [product, ctx.products]);
+
+  const addonVariation = useMemo(() => {
+    if (!addonProduct) return null;
+    return lowestVariation(addonProduct) || addonProduct.variations?.[0];
+  }, [addonProduct]);
+
   if (!product) return <Empty title="Product not found" action={() => navigate("/products")} />;
   const selected = product.variations.find((v) => v.id === variationId);
   const inCart = cart.find(item => item.productId === product.id && item.variationId === selected?.id)?.quantity || 0;
@@ -397,11 +436,36 @@ function ProductDetails({ product, ctx, addToCart, cart = [], navigate }) {
         <div className="quantity"><button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button><b>{quantity}</b><button disabled={quantity >= maxQuantity} onClick={() => setQuantity(Math.min(maxQuantity, quantity + 1))}>+</button></div>
         <div className="actions"><button disabled={!canBuy} onClick={() => { if (addToCart(product.id, selected.id, quantity)) setAdded(true); }}>Add to cart</button>{cart.length > 0 && <button className="ghost" onClick={() => navigate("/cart")}>View cart</button>}</div>
         {added && <p className="detail-added" role="status">Added to cart. You can keep shopping or open your cart.</p>}
+
+        {/* ── 1-Click Frequently Bought Together Bundle ── */}
+        {addonProduct && addonVariation && (
+          <div className="bundle-upsell-card">
+            <div className="bundle-upsell-badge">🔥 Frequently Bought Together</div>
+            <div className="bundle-upsell-content">
+              <img src={addonProduct.image} alt={addonProduct.name} className="bundle-upsell-img" />
+              <div className="bundle-upsell-text">
+                <strong>Add {addonProduct.name} ({addonVariation.name})</strong>
+                <span>Get it for just <strong>{money(addonVariation.price)}</strong> extra!</span>
+              </div>
+              <button
+                type="button"
+                className="bundle-upsell-btn"
+                onClick={() => {
+                  if (addToCart(addonProduct.id, addonVariation.id, 1)) {
+                    setBundleAdded(true);
+                    setTimeout(() => setBundleAdded(false), 2200);
+                  }
+                }}
+              >
+                {bundleAdded ? "✓ Added to Cart!" : `+ Add for ${money(addonVariation.price)}`}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
 }
-
 function Categories({ ctx, slug, navigate, store, addToCart, cart, isCatalogLoading }) {
   const category = slug ? ctx.categories.find((c) => c.slug === slug) : null;
   if (category) return <section className="section page-top category-page"><div className="category-hero"><img src={category.image} alt={`${category.name} logo`} /><div><h1>{category.name}</h1><p>{category.description}</p></div></div>{isCatalogLoading ? <ProductSkeletonGrid /> : <ProductGrid products={ctx.products.filter((p) => p.categoryId === category.id)} ctx={ctx} settings={store.settings} addToCart={addToCart} cart={cart} navigate={navigate} />}</section>;
@@ -471,6 +535,7 @@ function getUpiLink(app, amount) {
 }
 
 function OrderCompletedClaimScreen({ orderId, items, total, onBackToStore }) {
+  useEffect(() => { playSuccessChime(); triggerPaymentConfetti(); }, []);
   const itemsList = Array.isArray(items) ? items : [];
   const itemsText = itemsList
     .map(
@@ -615,6 +680,8 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
         const data = await res.json();
         if (!active) return;
         if (data.status === "confirmed") {
+          playSuccessChime();
+          triggerPaymentConfetti();
           setStep("done");
           onSuccess({ id: orderId, items: cartLines, total });
         } else if (data.status === "rejected") {
@@ -794,11 +861,47 @@ function UpiPaymentCheckout({ cartLines, total, onSuccess, onCancel }) {
 }
 
 function Cart({ cartLines, setCart, store, goBack }) {
-  const total = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
-  const orderReady = cartLines.length > 0 && cartLines.every((item) => item.purchasable);
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState("");
   const [showUpi, setShowUpi] = useState(false);
   const [completedOrder, setCompletedOrder] = useState(null);
-  const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
+
+  const subtotal = cartLines.reduce((sum, item) => sum + item.lineTotal, 0);
+
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === "percent") {
+      discountAmount = Math.round((subtotal * Number(appliedCoupon.value)) / 100);
+    } else {
+      discountAmount = Math.min(subtotal, Number(appliedCoupon.value) || 0);
+    }
+  }
+
+  const total = Math.max(0, subtotal - discountAmount);
+  const orderReady = cartLines.length > 0 && cartLines.every((item) => item.purchasable);
+
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    const coupons = Array.isArray(store.coupons) ? store.coupons : [];
+    const found = coupons.find((c) => c.code?.toUpperCase() === code && c.active);
+    if (!found) {
+      setCouponError("Invalid or expired promo code.");
+      return;
+    }
+    const minOrder = Number(found.minOrder) || 0;
+    if (subtotal < minOrder) {
+      setCouponError(`Order must be at least ${money(minOrder)} to use ${found.code}.`);
+      return;
+    }
+    setAppliedCoupon(found);
+    setCouponError("");
+    setCouponInput("");
+  };
+
+  const discountLine = appliedCoupon ? `\nPromo Discount (${appliedCoupon.code}): -${money(discountAmount)}` : "";
+  const message = `${store.settings.whatsappMessage}\n\nOrder Details:\n${cartLines.map((item, i) => `${i + 1}. ${item.product.name} - ${item.variation.name} x ${item.quantity} - ${money(item.lineTotal)}`).join("\n")}${discountLine}\n\nTotal: ${money(total)}\n\nPlease let me know the payment details and next steps.`;
 
   const updateQty = (productId, variationId, nextQty, maxStock) => {
     const validQty = Math.max(1, Math.min(Number.isFinite(maxStock) ? maxStock : Infinity, nextQty));
@@ -879,15 +982,63 @@ function Cart({ cartLines, setCart, store, goBack }) {
               );
             })}
           </div>
+
           <aside className="summary cart-summary-card">
             <h3>Order Summary</h3>
             <div className="summary-line">
               <span>Items ({cartLines.reduce((s, i) => s + i.quantity, 0)})</span>
-              <strong>{money(total)}</strong>
+              <strong>{money(subtotal)}</strong>
             </div>
+
+            {/* ── Promo Code Box ── */}
+            <div className="coupon-box">
+              {appliedCoupon ? (
+                <div className="coupon-applied-pill">
+                  <div>
+                    <strong>🏷️ {appliedCoupon.code}</strong>
+                    <div style={{ fontSize: "0.78rem" }}>
+                      {appliedCoupon.discountType === "percent" ? `${appliedCoupon.value}% OFF` : `₹${appliedCoupon.value} OFF`} applied!
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="coupon-remove-btn"
+                    onClick={() => setAppliedCoupon(null)}
+                  >
+                    ✕ Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="coupon-input-row">
+                  <input
+                    type="text"
+                    placeholder="PROMO CODE"
+                    value={couponInput}
+                    onChange={(e) => {
+                      setCouponInput(e.target.value.toUpperCase());
+                      setCouponError("");
+                    }}
+                    className="coupon-input"
+                  />
+                  <button type="button" className="coupon-apply-btn" onClick={handleApplyCoupon}>
+                    Apply
+                  </button>
+                </div>
+              )}
+              {couponError && <p className="coupon-error-text">{couponError}</p>}
+            </div>
+
+            {appliedCoupon && (
+              <div className="summary-line discount-line" style={{ color: "#16a34a" }}>
+                <span>Discount ({appliedCoupon.code})</span>
+                <strong>- {money(discountAmount)}</strong>
+              </div>
+            )}
+
             <div className="summary-line"><span>Delivery</span><span className="free-badge">Instant Digital</span></div>
             <hr className="summary-divider" />
             <div className="summary-line total-line"><span>Total</span><strong>{money(total)}</strong></div>
+
             {store.settings?.enableUpiPayment !== false ? (
               <>
                 <button
@@ -948,6 +1099,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
     products: store.products.length,
     categories: store.categories.length,
     offers: store.offers.filter((o) => o.active).length,
+    coupons: (store.coupons || []).length,
     out_of_stock: store.products.filter((p) => !hasAvailableVariation(p)).length,
   };
 
@@ -969,7 +1121,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
         ))}
       </div>
       <div className="tabs">
-        {["orders", "products", "categories", "offers", "settings"].map((item) => (
+        {["orders", "products", "categories", "offers", "coupons", "settings"].map((item) => (
           <button
             className={tab === item ? "active" : ""}
             onClick={() => setTab(item)}
@@ -985,6 +1137,7 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
+      {tab === "coupons" && <CouponAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "settings" && <SettingsAdmin key={JSON.stringify(store.settings)} store={store} updateStore={updateStore} saveStatus={saveStatus} />}
     </section>
   );
@@ -1491,6 +1644,122 @@ function OfferAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
   return <Editor title="Offer Management" onNew={() => setDraft({ ...blank, id: uid("offer") })} list={store.offers} pick={setDraft} activeId={draft.id} draft={form} save={save} remove={() => updateStore((s) => ({ ...s, offers: s.offers.filter((o) => o.id !== draft.id) }), "✓ Offer deleted successfully", "✕ Failed to delete offer. Please try again.")} saveStatus={saveStatus} />;
 }
 
+function CouponAdmin({ store, updateStore, saveStatus, setSaveStatus }) {
+  const coupons = Array.isArray(store.coupons) ? store.coupons : [];
+  const blank = {
+    id: uid("coup"),
+    code: "",
+    discountType: "percent",
+    value: 10,
+    minOrder: 0,
+    active: true,
+  };
+  const [draft, setDraft] = useState(blank);
+
+  const save = () => {
+    if (!draft.code || !draft.code.trim()) {
+      setSaveStatus("Coupon code is required (e.g. WELCOME10).");
+      return;
+    }
+    const cleanCode = draft.code.trim().toUpperCase();
+    const updatedCoupons = [
+      ...coupons.filter((c) => c.id !== draft.id),
+      {
+        ...draft,
+        code: cleanCode,
+        value: Number(draft.value) || 0,
+        minOrder: Number(draft.minOrder) || 0,
+      },
+    ];
+
+    updateStore(
+      (s) => ({ ...s, coupons: updatedCoupons }),
+      "✅ Coupon saved successfully",
+      "❌ Failed to save coupon"
+    );
+  };
+
+  const remove = () => {
+    updateStore(
+      (s) => ({ ...s, coupons: coupons.filter((c) => c.id !== draft.id) }),
+      "✅ Coupon deleted successfully",
+      "❌ Failed to delete coupon"
+    );
+  };
+
+  const form = (
+    <div className="form-grid">
+      <label>
+        Coupon Code *
+        <input
+          value={draft.code}
+          onChange={(e) => setDraft({ ...draft, code: e.target.value.toUpperCase() })}
+          placeholder="e.g. WELCOME10, FLAT50"
+          required
+        />
+      </label>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+        <label>
+          Discount Type
+          <select
+            value={draft.discountType}
+            onChange={(e) => setDraft({ ...draft, discountType: e.target.value })}
+          >
+            <option value="percent">% Percentage Discount</option>
+            <option value="flat">₹ Flat Discount</option>
+          </select>
+        </label>
+
+        <label>
+          Discount Value *
+          <input
+            type="number"
+            min="1"
+            value={draft.value ?? ""}
+            onChange={(e) => setDraft({ ...draft, value: e.target.value })}
+            placeholder={draft.discountType === "percent" ? "10 (% off)" : "50 (₹ off)"}
+            required
+          />
+        </label>
+      </div>
+
+      <label>
+        Minimum Order Amount (₹)
+        <input
+          type="number"
+          min="0"
+          value={draft.minOrder ?? ""}
+          onChange={(e) => setDraft({ ...draft, minOrder: e.target.value })}
+          placeholder="0 for no minimum"
+        />
+      </label>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          checked={draft.active}
+          onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+        />
+        Active (Customers can use this coupon at checkout)
+      </label>
+    </div>
+  );
+
+  return (
+    <Editor
+      title="Coupon Management"
+      onNew={() => setDraft({ ...blank, id: uid("coup") })}
+      list={coupons}
+      pick={setDraft}
+      activeId={draft.id}
+      draft={form}
+      save={save}
+      remove={remove}
+      saveStatus={saveStatus}
+    />
+  );
+}
 function SettingsAdmin({ store, updateStore, saveStatus }) {
   const [draft, setDraft] = useState(store.settings);
   const save = () => updateStore((latest) => ({ ...latest, settings: { ...latest.settings, ...draft } }), "✓ Settings saved successfully", "✕ Failed to save settings. Please try again.");
@@ -1553,7 +1822,7 @@ function getAdminItemStatus(item) {
 
 function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveStatus }) {
   const selectedItem = list.find((item) => item.id === activeId);
-  const selectedName = selectedItem?.name || selectedItem?.title || "this item";
+  const selectedName = selectedItem?.name || selectedItem?.title || selectedItem?.code || "this item";
   const handleDelete = () => {
     if (!selectedItem) return;
     if (window.confirm(`Delete ${selectedName}? This removes it from the website after save.`)) {
@@ -1569,7 +1838,7 @@ function Editor({ title, list, pick, activeId, draft, save, remove, onNew, saveS
             const status = getAdminItemStatus(item);
             return (
               <button className={item.id === activeId ? "selected" : ""} key={item.id} onClick={() => pick(structuredClone(item))}>
-                <span>{item.name || item.title}</span>
+                <span>{item.name || item.title || item.code}</span>
                 <small className={status.danger ? "danger" : ""}>{status.text}</small>
               </button>
             );

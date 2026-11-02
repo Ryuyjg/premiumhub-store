@@ -138,6 +138,9 @@ export function publicCatalog(data) {
     offers: Array.isArray(data.offers)
       ? data.offers.map((offer) => ({ ...offer, image: compactImage(offer.image, offer.itemName || offer.title) }))
       : [],
+    coupons: Array.isArray(data.coupons)
+      ? data.coupons
+      : [],
   };
 }
 

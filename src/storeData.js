@@ -135,4 +135,8 @@ export const seedData = {
     { id: "offer-prime-3m", title: "Prime Video 3 Month Offer", productId: "prime-video", variationId: "prime-video-1", price: 449, originalPrice: 699, description: "Save on a three month entertainment plan.", startDate: "", endDate: "", active: true, image: "" },
     { id: "offer-chatgpt-3m", title: "ChatGPT 3 Month Bundle", productId: "chatgpt", variationId: "chatgpt-1", price: 2499, originalPrice: 3999, description: "Save big on 3 months of GPT-4o access.", startDate: "", endDate: "", active: true, image: logo("GPT-4o", "#10a37f") },
   ],
+  coupons: [
+    { id: "coup-welcome", code: "WELCOME10", discountType: "percent", value: 10, minOrder: 0, active: true },
+    { id: "coup-flat50", code: "FLAT50", discountType: "flat", value: 50, minOrder: 299, active: true },
+  ],
 };
