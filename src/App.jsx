@@ -838,9 +838,19 @@ function Cart({ cartLines, setCart, store, goBack }) {
   );
 }
 function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, setSaveStatus }) {
-  const [tab, setTab] = useState("products");
+  const [tab, setTab] = useState("orders");
+  const [pendingCount, setPendingCount] = useState(0);
+
   if (!adminAuthed) return <Login onLogin={() => setAdminAuthed(true)} />;
-  const stats = { products: store.products.length, categories: store.categories.length, offers: store.offers.filter((o) => o.active).length, out: store.products.filter((p) => !hasAvailableVariation(p)).length };
+
+  const stats = {
+    pending_orders: pendingCount,
+    products: store.products.length,
+    categories: store.categories.length,
+    offers: store.offers.filter((o) => o.active).length,
+    out_of_stock: store.products.filter((p) => !hasAvailableVariation(p)).length,
+  };
+
   return (
     <section className="admin page-top">
       <div className="admin-head">
@@ -850,9 +860,28 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
           <button className="ghost" onClick={async () => { await fetch("/api/logout", { method: "POST", credentials: "include" }); setAdminAuthed(false); }}>Logout</button>
         </div>
       </div>
-      <div className="stats">{Object.entries(stats).map(([k, v]) => <div key={k}><strong>{v}</strong><span>{k}</span></div>)}</div>
-      <div className="tabs">{["products", "categories", "offers", "settings"].map((item) => <button className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>
+      <div className="stats">
+        {Object.entries(stats).map(([k, v]) => (
+          <div key={k} style={k === "pending_orders" && v > 0 ? { border: "1.5px solid #f59e0b", background: "#fef3c7" } : {}}>
+            <strong style={k === "pending_orders" && v > 0 ? { color: "#b45309" } : {}}>{v}</strong>
+            <span>{k.replace(/_/g, " ")}</span>
+          </div>
+        ))}
+      </div>
+      <div className="tabs">
+        {["orders", "products", "categories", "offers", "settings"].map((item) => (
+          <button
+            className={tab === item ? "active" : ""}
+            onClick={() => setTab(item)}
+            key={item}
+            style={item === "orders" && pendingCount > 0 ? { position: "relative", fontWeight: 800 } : {}}
+          >
+            {item === "orders" ? `Orders ${pendingCount > 0 ? `(${pendingCount})` : ""}` : item}
+          </button>
+        ))}
+      </div>
       <AdminStatusMessage message={saveStatus} />
+      {tab === "orders" && <OrdersAdmin onPendingCountChange={setPendingCount} />}
       {tab === "products" && <ProductAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "categories" && <CategoryAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
       {tab === "offers" && <OfferAdmin store={store} updateStore={updateStore} saveStatus={saveStatus} setSaveStatus={setSaveStatus} />}
@@ -861,6 +890,186 @@ function Admin({ store, updateStore, adminAuthed, setAdminAuthed, saveStatus, se
   );
 }
 
+function OrdersAdmin({ onPendingCountChange }) {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("pending");
+  const [actionMsg, setActionMsg] = useState("");
+
+  const loadOrders = async () => {
+    try {
+      const res = await fetch("/api/orders", { credentials: "include", cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setOrders(data);
+        const pCount = data.filter((o) => o.status === "pending").length;
+        if (onPendingCountChange) onPendingCountChange(pCount);
+      }
+    } catch (err) {
+      console.error("Failed to load orders:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load initially + auto-refresh every 5 seconds so admin sees new payments live!
+  useEffect(() => {
+    loadOrders();
+    const timer = setInterval(loadOrders, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleAction = async (id, status) => {
+    try {
+      const res = await fetch("/api/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id, status }),
+      });
+      if (res.ok) {
+        setActionMsg(status === "confirmed" ? "✅ Payment confirmed! Customer screen updated." : "❌ Order marked as rejected.");
+        setTimeout(() => setActionMsg(""), 3500);
+        loadOrders();
+      }
+    } catch {
+      setActionMsg("Failed to update order status. Please retry.");
+    }
+  };
+
+  const pendingList = orders.filter((o) => o.status === "pending");
+  const shownOrders = orders.filter((o) => filter === "all" || o.status === filter);
+
+  return (
+    <section className="admin-editor">
+      <div className="section-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2>Payment Verification</h2>
+          <small style={{ color: "#64748b" }}>Auto-refreshes every 5 seconds. Confirm payment after checking your UPI app.</small>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className={filter === "pending" ? "active" : "ghost"}
+            onClick={() => setFilter("pending")}
+            style={{ fontSize: 13, padding: "5px 12px" }}
+          >
+            Pending ({pendingList.length})
+          </button>
+          <button
+            type="button"
+            className={filter === "confirmed" ? "active" : "ghost"}
+            onClick={() => setFilter("confirmed")}
+            style={{ fontSize: 13, padding: "5px 12px" }}
+          >
+            Confirmed
+          </button>
+          <button
+            type="button"
+            className={filter === "rejected" ? "active" : "ghost"}
+            onClick={() => setFilter("rejected")}
+            style={{ fontSize: 13, padding: "5px 12px" }}
+          >
+            Rejected
+          </button>
+          <button
+            type="button"
+            className={filter === "all" ? "active" : "ghost"}
+            onClick={() => setFilter("all")}
+            style={{ fontSize: 13, padding: "5px 12px" }}
+          >
+            All ({orders.length})
+          </button>
+          <button type="button" className="ghost" onClick={loadOrders} style={{ fontSize: 13, padding: "5px 12px" }}>
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+
+      {actionMsg && <div className="admin-status active" style={{ marginBottom: 16 }}>{actionMsg}</div>}
+
+      {loading && orders.length === 0 ? (
+        <p style={{ padding: 24, textAlign: "center" }}>Checking incoming orders...</p>
+      ) : shownOrders.length === 0 ? (
+        <div style={{ padding: 40, textAlign: "center", background: "#f8fafc", borderRadius: 16, border: "1.5px dashed #cbd5e1" }}>
+          <p style={{ margin: 0, fontSize: "1rem", color: "#64748b", fontWeight: 600 }}>
+            No {filter} payment sessions found.
+          </p>
+          <small style={{ color: "#94a3b8" }}>When a customer opens UPI checkout, their session appears here in real time.</small>
+        </div>
+      ) : (
+        <div className="orders-list">
+          {shownOrders.map((order) => {
+            const items = (() => {
+              try {
+                return typeof order.items === "string" ? JSON.parse(order.items) : order.items || [];
+              } catch {
+                return [];
+              }
+            })();
+
+            const createdTime = new Date(order.created_at);
+            const minutesAgo = Math.round((Date.now() - createdTime.getTime()) / 60000);
+            const timeFormatted = isNaN(createdTime.getTime())
+              ? "Just now"
+              : minutesAgo < 1
+              ? "Just now"
+              : minutesAgo < 60
+              ? `${minutesAgo}m ago`
+              : `${Math.round(minutesAgo / 60)}h ago`;
+
+            return (
+              <div key={order.id} className={`order-card order-${order.status}`}>
+                <div className="order-card-top">
+                  <div>
+                    <strong className="order-id">{order.id}</strong>
+                    <span className="order-meta">
+                      Method: <strong>{order.upi_app || "UPI"}</strong> &middot; {timeFormatted}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <strong className="order-total">{money(order.total)}</strong>
+                    <span className={`order-status-badge order-status-${order.status}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="order-items">
+                  {items.map((item, idx) => (
+                    <span key={idx} className="order-item-pill">
+                      {item.name} &middot; {item.variation} {item.qty > 1 ? `x${item.qty}` : ""} ({money(item.price)})
+                    </span>
+                  ))}
+                </div>
+
+                {order.status === "pending" && (
+                  <div className="order-actions">
+                    <button
+                      type="button"
+                      className="order-confirm-btn"
+                      onClick={() => handleAction(order.id, "confirmed")}
+                    >
+                      ✅ Confirm Payment
+                    </button>
+                    <button
+                      type="button"
+                      className="order-reject-btn"
+                      onClick={() => handleAction(order.id, "rejected")}
+                    >
+                      ❌ Decline
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
