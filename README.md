@@ -1,4 +1,4 @@
-# 🛍️ PremiumHub Store
+﻿# 🛍️ PremiumHub Store
 
 <div align="center">
   <img src="https://img.shields.io/badge/React-19.2-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
@@ -80,5 +80,6 @@
 
 ## 👨‍💻 Author
 
-- **GitHub**: [@Ryuyjg](https://github.com/Ryuyjg)
+- **Author**: Muhammad Ansif ([@Ryuyjg](https://github.com/Ryuyjg))
 - **Live Demo**: [premiumhub-store-puce.vercel.app](https://premiumhub-store-puce.vercel.app)
+
